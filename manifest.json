@@ -1,0 +1,23 @@
+{
+  "name": "Gerenciamento de Rifa",
+  "short_name": "RifaApp",
+  "description": "App para gerenciar rifas, registrar compradores e exportar relatórios.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f2f7fa",
+  "theme_color": "#2e86de",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+
