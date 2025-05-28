@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Gerenciamento de Rifa</title>
+<link rel="manifest" href="manifest.json" />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
   body {
@@ -403,7 +404,6 @@
       buyerNameInput.focus();
       return;
     }
-    // Phone can be optional, but let's require it
     if (!validatePhone(buyerPhoneInput.value)) {
       alert('Informe o telefone do comprador.');
       buyerPhoneInput.focus();
@@ -490,7 +490,6 @@
     doc.text('Número  Comprador                Telefone', 14, y);
     y += 6;
 
-    // List all numbers with buyer info if present
     for(let num = rangeStart; num <= rangeEnd; num++){
       const data = buyersData[num];
       let buyer = data ? data.buyer : '';
@@ -498,7 +497,6 @@
       let line = `${num.toString().padEnd(7)} ${buyer.padEnd(24)} ${phone}`;
       doc.text(line, 14, y);
       y += 6;
-      // page break if needed (assume ~280 height max)
       if(y > 280) {
         doc.addPage();
         y = 14;
