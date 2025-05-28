@@ -212,7 +212,6 @@
   </section>
 </main>
 
-<!-- Modal for buyer info -->
 <div class="modal-overlay" id="buyerModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
     <button class="close-btn" id="closeBuyerModal" aria-label="Fechar">&times;</button>
@@ -230,8 +229,8 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-Lb7UFT7vZH87p+Y+Y9StQMTCjZH4jLwnj9u37qaKBpu8F+/mfH+4SRUOZjANDxW3o/VbdYMtt3XawiG6KqKU6Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-U5BRVKcT3KG9FPG+a5WxBlr9y+aOK1Vs+1lGyAheUtm8x2YHbCfDla74Pc03vXomUBuk5Ot6MrUYdMopMAPwFg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script>
 (() => {
@@ -457,14 +456,18 @@
     }
   }
 
+  // Export PDF function corrected
   function exportPdf() {
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert('Erro ao carregar jsPDF. Tente novamente mais tarde.');
+      return;
+    }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
-    const title = "Relatório de Rifa";
     doc.setFontSize(18);
     doc.setTextColor("#2e86de");
-    doc.text(title, 105, 15, null, null, 'center');
+    doc.text("Relatório de Rifa", 105, 15, null, null, 'center');
 
     doc.setFontSize(12);
     doc.setTextColor("#555");
@@ -478,7 +481,7 @@
     y += 6;
 
     for(let num = rangeStart; num <= rangeEnd; num++){
-      const data = buyersData[num];
+      let data = buyersData[num];
       let buyer = data ? data.buyer : '';
       let phone = data ? data.phone : '';
       let line = `${num.toString().padEnd(7)} ${buyer.padEnd(24)} ${phone}`;
@@ -492,6 +495,7 @@
     doc.save("Relatório de Rifa.pdf");
   }
 
+  // Export TXT function unchanged but included for completeness
   function exportTxt() {
     let lines = [];
     lines.push("Relatório de Rifa");
@@ -509,7 +513,12 @@
     triggerDownload(blob, 'Relatório de Rifa.txt');
   }
 
+  // Export Excel function corrected
   function exportExcel() {
+    if(!window.XLSX){
+      alert('Erro ao carregar SheetJS (XLSX). Tente novamente mais tarde.');
+      return;
+    }
     const wb = XLSX.utils.book_new();
     const ws_data = [
       ["Relatório de Rifa"],
@@ -531,6 +540,7 @@
     triggerDownload(blob, "Relatório de Rifa.xlsx");
   }
 
+  // Helper to trigger download
   function triggerDownload(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -544,6 +554,7 @@
     }, 0);
   }
 
+  // Accessibility: trap focus in modals
   let lastFocusedElement = null;
   function trapFocus(element) {
     lastFocusedElement = document.activeElement;
@@ -583,12 +594,15 @@
 
   sellerNameInput.addEventListener('input', updateSaveSellerBtnState);
   saveSellerBtn.addEventListener('click', saveSeller);
+
   startNumberInput.addEventListener('input', updateGenerateBtnState);
   endNumberInput.addEventListener('input', updateGenerateBtnState);
   generateGridBtn.addEventListener('click', generateRifa);
+
   buyerForm.addEventListener('submit', saveBuyerData);
   closeBuyerModalBtn.addEventListener('click', closeBuyerModal);
   deleteBuyerBtn.addEventListener('click', deleteBuyer);
+
   exportPdfBtn.addEventListener('click', exportPdf);
   exportTxtBtn.addEventListener('click', exportTxt);
   exportExcelBtn.addEventListener('click', exportExcel);
