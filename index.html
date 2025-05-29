@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gerenciamento de Rifa</title>
+<link rel="manifest" href="manifest.json" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+  body {
+    margin:0; padding:0;
+    font-family: 'Montserrat', sans-serif;
+    background: #f2f7fa;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  header {
+    background: #2e86de;
+    color: white;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    font-size: 1.75rem;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+  main {
+    flex: 1;
+    padding: 1rem;
+    max-width: 960px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  label {
+    font-weight: 700;
+  }
+  .config-section, .range-section, .grid-section, .export-section {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0 10px rgb(0 0 0 / 0.05);
+  }
+  input[type=number], input[type=text], input[type=tel] {
+    font-size: 1rem;
+    padding: 0.4rem 0.6rem;
+    margin: 0.25rem 0 1rem 0;
+    width: 100%;
+    max-width: 180px;
+    border: 1.5px solid #ccc;
+    border-radius: 4px;
+    transition: border-color 0.3s ease;
+  }
+  input[type=number]:focus, input[type=text]:focus, input[type=tel]:focus {
+    outline: none;
+    border-color: #2e86de;
+  }
+  button {
+    background: #2e86de;
+    border: none;
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.6rem 1.3rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:disabled {
+    background: #a5c9f5;
+    cursor: not-allowed;
+  }
+  button:hover:not(:disabled) {
+    background: #1b4f72;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    user-select: none;
+  }
+  .square {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: white;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    box-shadow: 0 2px 5px rgb(0 0 0 / 0.05);
+  }
+  .square.sold {
+    background: #28a745;
+    border-color: #1e7e34;
+    color: white;
+  }
+  .square:hover {
+    border-color: #2e86de;
+  }
+  small {
+    color: #666;
+  }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+  }
+  .modal-overlay.active {
+    display: flex;
+  }
+  .modal {
+    background: white;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 380px;
+    padding: 1.5rem 1.75rem;
+    box-shadow: 0 4px 18px rgb(0 0 0 / 0.25);
+    position: relative;
+  }
+  .modal h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-weight: 700;
+    font-size: 1.3rem;
+  }
+  .modal label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
+  .modal input[type=text], .modal input[type=tel] {
+    width: 100%;
+    padding: 0.5rem 0.7rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    border: 1.5px solid #ccc;
+    transition: border-color 0.3s ease;
+  }
+  .modal input[type=text]:focus, .modal input[type=tel]:focus {
+    outline: none;
+    border-color: #2e86de;
+  }
+  .close-btn {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #888;
+    font-weight: 700;
+  }
+  .close-btn:hover {
+    color: #2e86de;
+  }
+  .footer {
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 0.4rem 0;
+    background: #eaeef3;
+    color: #555;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<header>
+  Gerenciamento de Rifa
+</header>
+<main>
+  <section class="config-section" id="configSection">
+    <h2>Configuração do Vendedor</h2>
+    <label for="sellerNameInput">Nome do Vendedor:</label>
+    <input type="text" id="sellerNameInput" placeholder="Digite o nome do vendedor" maxlength="40" autocomplete="off" />
+    <button id="saveSellerBtn" disabled>Salvar Vendedor</button>
+  </section>
+
+  <section class="range-section" id="rangeSection" style="display:none;">
+    <h2>Definir intervalo de números (100 números)</h2>
+    <label for="startNumber">Número inicial:</label>
+    <input type="number" id="startNumber" min="0" max="999999" step="1" placeholder="Ex: 101" autocomplete="off" />
+    <label for="endNumber">Número final:</label>
+    <input type="number" id="endNumber" min="0" max="999999" step="1" placeholder="Ex: 200" autocomplete="off" />
+    <button id="generateGridBtn" disabled>Gerar Rifa</button>
+    <small>O intervalo deve conter exatamente 100 números (inclusive).</small>
+  </section>
+
+  <section class="grid-section" id="gridSection" style="display:none;">
+    <h2>Rifa: <span id="displayRange"></span></h2>
+    <div class="grid" id="numberGrid" aria-label="Grade de números da rifa"></div>
+  </section>
+
+  <section class="export-section" id="exportSection" style="display:none;">
+    <h2>Exportar Relatório</h2>
+    <button id="exportPdfBtn">Exportar PDF</button>
+    <button id="exportTxtBtn">Exportar TXT</button>
+    <button id="exportExcelBtn">Exportar Excel</button>
+    <button id="resetAppBtn" style="background:#d9534f; margin-left:1rem;">Resetar App</button>
+  </section>
+</main>
+
+<div class="modal-overlay" id="buyerModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+    <button class="close-btn" id="closeBuyerModal" aria-label="Fechar">&times;</button>
+    <h2 id="modalTitle">Informações do Comprador</h2>
+    <form id="buyerForm">
+      <label for="buyerNameInput">Comprador:</label>
+      <input type="text" id="buyerNameInput" maxlength="40" autocomplete="off" />
+      <label for="buyerPhoneInput">Telefone:</label>
+      <input type="tel" id="buyerPhoneInput" maxlength="20" pattern="[\d\s()+-]*" autocomplete="off" placeholder="(99) 99999-9999" />
+      <div style="display:flex; justify-content:flex-end; gap: 10px;">
+        <button type="button" id="deleteBuyerBtn" style="background:#d9534f;">Remover Venda</button>
+        <button type="submit" id="saveBuyerBtn">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script>
+(() => {
+  // Polyfill para ambiente Android
+  if (typeof Android === 'undefined') {
+    window.Android = {
+      saveFile: function(content, filename, mimeType) {
+        console.log("Simulando saveFile no navegador:", filename);
+        let blob;
+        if (mimeType === 'application/pdf') {
+          const byteString = atob(content.split(',')[1]);
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          blob = new Blob([ab], {type: mimeType});
+        } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+          const byteString = atob(content);
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          blob = new Blob([ab], {type: mimeType});
+        } else {
+          blob = new Blob([content], {type: mimeType});
+        }
+        triggerDownload(blob, filename);
+      }
+    };
+  }
+
+  const lsKeySeller = 'rifa_seller_name';
+  const lsKeyRange = 'rifa_number_range';
+  const lsKeyBuyers = 'rifa_buyers_data';
+
+  const sellerSection = document.getElementById('configSection');
+  const sellerNameInput = document.getElementById('sellerNameInput');
+  const saveSellerBtn = document.getElementById('saveSellerBtn');
+
+  const rangeSection = document.getElementById('rangeSection');
+  const startNumberInput = document.getElementById('startNumber');
+  const endNumberInput = document.getElementById('endNumber');
+  const generateGridBtn = document.getElementById('generateGridBtn');
+
+  const gridSection = document.getElementById('gridSection');
+  const displayRangeSpan = document.getElementById('displayRange');
+  const numberGrid = document.getElementById('numberGrid');
+
+  const exportSection = document.getElementById('exportSection');
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
+  const exportTxtBtn = document.getElementById('exportTxtBtn');
+  const exportExcelBtn = document.getElementById('exportExcelBtn');
+  const resetAppBtn = document.getElementById('resetAppBtn');
+
+  const buyerModal = document.getElementById('buyerModal');
+  const buyerForm = document.getElementById('buyerForm');
+  const buyerNameInput = document.getElementById('buyerNameInput');
+  const buyerPhoneInput = document.getElementById('buyerPhoneInput');
+  const closeBuyerModalBtn = document.getElementById('closeBuyerModal');
+  const deleteBuyerBtn = document.getElementById('deleteBuyerBtn');
+
+  let sellerName = null;
+  let rangeStart = null;
+  let rangeEnd = null;
+  let buyersData = {};
+  let selectedNumber = null;
+
+  function init() {
+    sellerName = localStorage.getItem(lsKeySeller);
+    if (!sellerName) {
+      sellerSection.style.display = 'block';
+      rangeSection.style.display = 'none';
+      gridSection.style.display = 'none';
+      exportSection.style.display = 'none';
+    } else {
+      sellerSection.style.display = 'none';
+      rangeSection.style.display = 'block';
+      loadRangeAndBuyers();
+      if (rangeStart !== null && rangeEnd !== null) {
+        displayRangeSpan.textContent = `${rangeStart} a ${rangeEnd}`;
+        generateGrid();
+        gridSection.style.display = 'block';
+        exportSection.style.display = 'block';
+      } else {
+        gridSection.style.display = 'none';
+        exportSection.style.display = 'none';
+      }
+    }
+    updateSaveSellerBtnState();
+    updateGenerateBtnState();
+  }
+
+  function loadRangeAndBuyers() {
+    const rangeStr = localStorage.getItem(lsKeyRange);
+    if (rangeStr) {
+      try {
+        const parsed = JSON.parse(rangeStr);
+        if (typeof parsed.start === 'number' && typeof parsed.end === 'number') {
+          rangeStart = parsed.start;
+          rangeEnd = parsed.end;
+          startNumberInput.value = rangeStart;
+          endNumberInput.value = rangeEnd;
+        }
+      } catch {
+        rangeStart = null;
+        rangeEnd = null;
+      }
+    }
+    const buyersStr = localStorage.getItem(lsKeyBuyers);
+    if (buyersStr) {
+      try {
+        buyersData = JSON.parse(buyersStr);
+      } catch {
+        buyersData = {};
+      }
+    } else {
+      buyersData = {};
+    }
+  }
+
+  function validateSellerName(name) {
+    return name.trim().length > 0;
+  }
+  function validateRange(start, end) {
+    if (!Number.isInteger(start) || !Number.isInteger(end)) return false;
+    if (end < start) return false;
+    return (end - start + 1) === 100;
+  }
+  function validateBuyerName(name) {
+    return name.trim().length > 0;
+  }
+  function validatePhone(phone) {
+    return phone.trim().length > 0;
+  }
+
+  function updateGenerateBtnState() {
+    const start = parseInt(startNumberInput.value);
+    const end = parseInt(endNumberInput.value);
+    generateGridBtn.disabled = !validateRange(start, end);
+  }
+
+  function updateSaveSellerBtnState() {
+    saveSellerBtn.disabled = !validateSellerName(sellerNameInput.value);
+  }
+
+  function generateGrid() {
+    numberGrid.innerHTML = '';
+    for (let num = rangeStart; num <= rangeEnd; num++) {
+      const square = document.createElement('div');
+      square.className = 'square';
+      square.textContent = num;
+      if (buyersData[num]) {
+        square.classList.add('sold');
+      }
+      square.tabIndex = 0;
+      square.setAttribute('role', 'button');
+      square.setAttribute('aria-label', `Número ${num}${buyersData[num] ? ', vendido para '+buyersData[num].buyer : ', disponível'}`);
+      square.addEventListener('click', () => openBuyerModal(num));
+      square.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openBuyerModal(num);
+        }
+      });
+      numberGrid.appendChild(square);
+    }
+  }
+
+  function openBuyerModal(number) {
+    selectedNumber = number;
+    const data = buyersData[number];
+    buyerNameInput.value = data ? data.buyer : '';
+    buyerPhoneInput.value = data ? data.phone : '';
+    deleteBuyerBtn.style.display = data ? 'inline-block' : 'none';
+    buyerModal.classList.add('active');
+    buyerNameInput.focus();
+    trapFocus(buyerModal);
+  }
+
+  function closeBuyerModal() {
+    buyerModal.classList.remove('active');
+    selectedNumber = null;
+    releaseFocusTrap();
+  }
+
+  function saveBuyerData(e) {
+    e.preventDefault();
+    if (!validateBuyerName(buyerNameInput.value)) {
+      alert('Informe o nome do comprador.');
+      buyerNameInput.focus();
+      return;
+    }
+    if (!validatePhone(buyerPhoneInput.value)) {
+      alert('Informe o telefone do comprador.');
+      buyerPhoneInput.focus();
+      return;
+    }
+
+    buyersData[selectedNumber] = {
+      buyer: buyerNameInput.value.trim(),
+      phone: buyerPhoneInput.value.trim()
+    };
+    localStorage.setItem(lsKeyBuyers, JSON.stringify(buyersData));
+    generateGrid();
+    closeBuyerModal();
+  }
+
+  function deleteBuyer() {
+    if(selectedNumber !== null){
+      if(confirm(`Deseja remover a venda do número ${selectedNumber}?`)){
+        delete buyersData[selectedNumber];
+        localStorage.setItem(lsKeyBuyers, JSON.stringify(buyersData));
+        generateGrid();
+        closeBuyerModal();
+      }
+    }
+  }
+
+  function saveSeller() {
+    const name = sellerNameInput.value.trim();
+    if(!validateSellerName(name)){
+      alert('Por favor, informe o nome do vendedor.');
+      return;
+    }
+    sellerName = name;
+    localStorage.setItem(lsKeySeller, sellerName);
+    sellerSection.style.display = 'none';
+    rangeSection.style.display = 'block';
+  }
+
+  function generateRifa() {
+    const start = parseInt(startNumberInput.value);
+    const end = parseInt(endNumberInput.value);
+    if(!validateRange(start, end)){
+      alert('Intervalo inválido. Deve conter exatamente 100 números.');
+      return;
+    }
+    rangeStart = start;
+    rangeEnd = end;
+    localStorage.setItem(lsKeyRange, JSON.stringify({start: start, end: end}));
+    displayRangeSpan.textContent = `${start} a ${end}`;
+    generateGrid();
+    gridSection.style.display = 'block';
+    exportSection.style.display = 'block';
+  }
+
+  function resetApp() {
+    if(confirm('Deseja realmente resetar o app? Todos os dados serão apagados.')){
+      localStorage.clear();
+      location.reload();
+    }
+  }
+
+  function exportPdf() {
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert('Erro ao carregar jsPDF. Tente novamente mais tarde.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.setTextColor("#2e86de");
+    doc.text("Relatório de Rifa", 105, 15, null, null, 'center');
+
+    doc.setFontSize(12);
+    doc.setTextColor("#555");
+    doc.text(`Vendedor: ${sellerName}`, 14, 28);
+    doc.text(`Intervalo: ${rangeStart} a ${rangeEnd}`, 14, 36);
+
+    let y = 46;
+    doc.setFontSize(11);
+    doc.setTextColor("#000");
+    doc.text('Número  Comprador                Telefone', 14, y);
+    y += 6;
+
+    for(let num = rangeStart; num <= rangeEnd; num++){
+      let data = buyersData[num];
+      let buyer = data ? data.buyer : '';
+      let phone = data ? data.phone : '';
+      let line = `${num.toString().padEnd(7)} ${buyer.padEnd(24)} ${phone}`;
+      doc.text(line, 14, y);
+      y += 6;
+      if(y > 280) {
+        doc.addPage();
+        y = 14;
+      }
+    }
+    
+    const safeName = sellerName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const pdfOutput = doc.output('datauristring');
+    
+    if (typeof Android !== 'undefined' && Android.saveFile) {
+      Android.saveFile(pdfOutput, `${safeName}_Relatório_de_Rifa.pdf`, 'application/pdf');
+    } else {
+      const byteString = atob(pdfOutput.split(',')[1]);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], {type: 'application/pdf'});
+      triggerDownload(blob, `${safeName}_Relatório_de_Rifa.pdf`);
+    }
+  }
+
+  function exportTxt() {
+    let lines = [];
+    lines.push("Relatório de Rifa");
+    lines.push(`Vendedor: ${sellerName}`);
+    lines.push(`Intervalo: ${rangeStart} a ${rangeEnd}`);
+    lines.push("");
+    lines.push("Número\tComprador\tTelefone");
+    for(let num = rangeStart; num <= rangeEnd; num++){
+      let data = buyersData[num];
+      let buyer = data ? data.buyer : '';
+      let phone = data ? data.phone : '';
+      lines.push(`${num}\t${buyer}\t${phone}`);
+    }
+    const txtContent = lines.join('\n');
+    
+    if (typeof Android !== 'undefined' && Android.saveFile) {
+      Android.saveFile(txtContent, `${safeName}_Relatório_de_Rifa.txt`, 'text/plain');
+    } else {
+      const blob = new Blob([txtContent], {type: 'text/plain;charset=utf-8'});
+      triggerDownload(blob, `${safeName}_Relatório_de_Rifa.txt`);
+    }
+  }
+
+  function exportExcel() {
+    if(!window.XLSX){
+      alert('Erro ao carregar SheetJS (XLSX). Tente novamente mais tarde.');
+      return;
+    }
+    const wb = XLSX.utils.book_new();
+    const ws_data = [
+      ["Relatório de Rifa"],
+      [`Vendedor:`, sellerName],
+      [`Intervalo:`, `${rangeStart} a ${rangeEnd}`],
+      [],
+      ["Número", "Comprador", "Telefone"]
+    ];
+    for(let num = rangeStart; num <= rangeEnd; num++){
+      let data = buyersData[num];
+      let buyer = data ? data.buyer : '';
+      let phone = data ? data.phone : '';
+      ws_data.push([num, buyer, phone]);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+    
+    const safeName = sellerName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    
+    if (typeof Android !== 'undefined' && Android.saveFile) {
+      const wbout = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+      Android.saveFile(wbout, `${safeName}_Relatório_de_Rifa.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    } else {
+      const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+      const blob = new Blob([wbout], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+      triggerDownload(blob, `${safeName}_Relatório_de_Rifa.xlsx`);
+    }
+  }
+
+  function triggerDownload(blob, filename) {
+    if (typeof Android !== 'undefined' && Android.saveFile) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        Android.saveFile(reader.result, filename, blob.type);
+      };
+      reader.readAsDataURL(blob);
+      return;
+    }
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 0);
+  }
+
+  let lastFocusedElement = null;
+  function trapFocus(element) {
+    lastFocusedElement = document.activeElement;
+    const focusableSelectors = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, [tabindex="0"], [contenteditable]';
+    const focusableElements = element.querySelectorAll(focusableSelectors);
+    if(focusableElements.length === 0) return;
+    let first = focusableElements[0];
+    let last = focusableElements[focusableElements.length - 1];
+    element.addEventListener('keydown', handleTrap);
+    first.focus();
+
+    function handleTrap(e){
+      if(e.key === 'Tab'){
+        if(e.shiftKey){
+          if(document.activeElement === first){
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if(document.activeElement === last){
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      } else if(e.key === 'Escape'){
+        closeBuyerModal();
+      }
+    }
+  }
+  function releaseFocusTrap(){
+    buyerModal.removeEventListener('keydown', null);
+    if(lastFocusedElement){
+      lastFocusedElement.focus();
+      lastFocusedElement = null;
+    }
+  }
+
+  sellerNameInput.addEventListener('input', updateSaveSellerBtnState);
+  saveSellerBtn.addEventListener('click', saveSeller);
+  startNumberInput.addEventListener('input', updateGenerateBtnState);
+  endNumberInput.addEventListener('input', updateGenerateBtnState);
+  generateGridBtn.addEventListener('click', generateRifa);
+  buyerForm.addEventListener('submit', saveBuyerData);
+  closeBuyerModalBtn.addEventListener('click', closeBuyerModal);
+  deleteBuyerBtn.addEventListener('click', deleteBuyer);
+  exportPdfBtn.addEventListener('click', exportPdf);
+  exportTxtBtn.addEventListener('click', exportTxt);
+  exportExcelBtn.addEventListener('click', exportExcel);
+  resetAppBtn.addEventListener('click', resetApp);
+
+  init();
+})();
+</script>
+<footer class="footer">
+  App criado por BLACKBOXAI
+</footer>
+</body>
+</html>
