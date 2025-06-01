@@ -358,6 +358,26 @@
             display: none !important;
         }
 
+        /* Auto-save indicator */
+        .auto-save-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10B981;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1001;
+        }
+
+        .auto-save-indicator.show {
+            opacity: 1;
+        }
+
         /* iOS specific adjustments */
         @media screen and (-webkit-min-device-pixel-ratio: 0) {
             select, textarea, input[type="text"], input[type="password"], 
@@ -464,6 +484,11 @@
         </div>
     </div>
 
+    <!-- Auto-save indicator -->
+    <div id="autoSaveIndicator" class="auto-save-indicator">
+        💾 Dados salvos automaticamente
+    </div>
+
     <!-- Modal de Número -->
     <div id="numeroModal" class="modal-overlay hidden">
         <div class="modal-container">
@@ -536,16 +561,91 @@
         let numeros = [];
         let numeroSelecionado = null;
 
+        // Chaves para armazenamento local
+        const STORAGE_KEYS = {
+            vendedor: 'rifaacs_vendedor',
+            intervaloInicio: 'rifaacs_inicio',
+            intervaloFim: 'rifaacs_fim',
+            numeros: 'rifaacs_numeros',
+            configurado: 'rifaacs_configurado'
+        };
+
+        // Funções de salvamento e carregamento
+        function salvarDados() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.vendedor, vendedor);
+                localStorage.setItem(STORAGE_KEYS.intervaloInicio, intervaloInicio.toString());
+                localStorage.setItem(STORAGE_KEYS.intervaloFim, intervaloFim.toString());
+                localStorage.setItem(STORAGE_KEYS.numeros, JSON.stringify(numeros));
+                localStorage.setItem(STORAGE_KEYS.configurado, 'true');
+                mostrarIndicadorSalvamento();
+            } catch (e) {
+                console.warn('Não foi possível salvar os dados localmente:', e);
+            }
+        }
+
+        function carregarDados() {
+            try {
+                const configurado = localStorage.getItem(STORAGE_KEYS.configurado);
+                if (!configurado) return false;
+
+                vendedor = localStorage.getItem(STORAGE_KEYS.vendedor) || '';
+                intervaloInicio = parseInt(localStorage.getItem(STORAGE_KEYS.intervaloInicio)) || 101;
+                intervaloFim = parseInt(localStorage.getItem(STORAGE_KEYS.intervaloFim)) || 200;
+                
+                const numerosData = localStorage.getItem(STORAGE_KEYS.numeros);
+                if (numerosData) {
+                    numeros = JSON.parse(numerosData);
+                }
+
+                return true;
+            } catch (e) {
+                console.warn('Erro ao carregar dados:', e);
+                return false;
+            }
+        }
+
+        function limparDados() {
+            try {
+                Object.values(STORAGE_KEYS).forEach(key => {
+                    localStorage.removeItem(key);
+                });
+            } catch (e) {
+                console.warn('Erro ao limpar dados:', e);
+            }
+        }
+
+        function mostrarIndicadorSalvamento() {
+            const indicator = document.getElementById('autoSaveIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
-            const vendedorInput = document.getElementById('vendedorInput');
-            const comecarBtn = document.getElementById('comecarBtn');
+            // Tentar carregar dados existentes
+            const dadosCarregados = carregarDados();
+            
+            if (dadosCarregados && vendedor) {
+                // Dados encontrados, ir direto para o app
+                document.getElementById('setupScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                document.getElementById('vendedorHeader').textContent = `Vendedor: ${vendedor}`;
+                atualizarGrid();
+                atualizarEstatisticas();
+            } else {
+                // Configurar tela inicial
+                const vendedorInput = document.getElementById('vendedorInput');
+                const comecarBtn = document.getElementById('comecarBtn');
 
-            vendedorInput.addEventListener('input', function() {
-                comecarBtn.disabled = !this.value.trim();
-            });
+                vendedorInput.addEventListener('input', function() {
+                    comecarBtn.disabled = !this.value.trim();
+                });
 
-            comecarBtn.addEventListener('click', inicializarApp);
+                comecarBtn.addEventListener('click', inicializarApp);
+            }
             
             // Event listeners para os botões do header
             document.getElementById('exportBtn').addEventListener('click', () => mostrarModal('exportModal'));
@@ -554,6 +654,12 @@
             
             // Event listener para salvar número
             document.getElementById('salvarBtn').addEventListener('click', salvarNumero);
+
+            // Salvar dados antes da página fechar/recarregar
+            window.addEventListener('beforeunload', salvarDados);
+            
+            // Salvar dados periodicamente (a cada 30 segundos)
+            setInterval(salvarDados, 30000);
         });
 
         function inicializarApp() {
@@ -569,17 +675,21 @@
             document.getElementById('vendedorHeader').textContent = `Vendedor: ${vendedor}`;
             atualizarGrid();
             atualizarEstatisticas();
+            salvarDados();
         }
 
         function inicializarNumeros() {
-            numeros = [];
-            for (let i = intervaloInicio; i <= intervaloFim; i++) {
-                numeros.push({
-                    numero: i,
-                    comprador: '',
-                    telefone: '',
-                    vendido: false
-                });
+            // Se já existem números salvos, manter os dados
+            if (numeros.length === 0) {
+                numeros = [];
+                for (let i = intervaloInicio; i <= intervaloFim; i++) {
+                    numeros.push({
+                        numero: i,
+                        comprador: '',
+                        telefone: '',
+                        vendido: false
+                    });
+                }
             }
         }
 
@@ -645,6 +755,7 @@
             fecharModal();
             atualizarGrid();
             atualizarEstatisticas();
+            salvarDados(); // Salvar imediatamente após mudança
         }
 
         function mostrarConfigModal() {
@@ -655,27 +766,37 @@
         }
 
         function salvarConfiguracoes() {
-            vendedor = document.getElementById('vendedorConfigInput').value.trim();
+            const novoVendedor = document.getElementById('vendedorConfigInput').value.trim();
             const novoInicio = parseInt(document.getElementById('inicioConfigInput').value);
             const novoFim = parseInt(document.getElementById('fimConfigInput').value);
 
-            if (vendedor && novoInicio && novoFim && novoInicio <= novoFim) {
-                intervaloInicio = novoInicio;
-                intervaloFim = novoFim;
+            if (novoVendedor && novoInicio && novoFim && novoInicio <= novoFim) {
+                // Se o intervalo mudou, precisamos recriar os números
+                if (novoInicio !== intervaloInicio || novoFim !== intervaloFim) {
+                    if (confirm('Alterar o intervalo irá resetar todos os números. Continuar?')) {
+                        vendedor = novoVendedor;
+                        intervaloInicio = novoInicio;
+                        intervaloFim = novoFim;
+                        numeros = []; // Resetar números
+                        inicializarNumeros();
+                        atualizarGrid();
+                        atualizarEstatisticas();
+                    }
+                } else {
+                    vendedor = novoVendedor;
+                }
+                
                 document.getElementById('vendedorHeader').textContent = `Vendedor: ${vendedor}`;
-                inicializarNumeros();
-                atualizarGrid();
-                atualizarEstatisticas();
+                salvarDados();
             }
 
             fecharConfigModal();
         }
 
         function resetarApp() {
-            if (confirm('Tem certeza que deseja resetar todos os dados?')) {
-                inicializarNumeros();
-                atualizarGrid();
-                atualizarEstatisticas();
+            if (confirm('Tem certeza que deseja resetar todos os dados? Esta ação não pode ser desfeita.')) {
+                limparDados();
+                location.reload();
             }
         }
 
