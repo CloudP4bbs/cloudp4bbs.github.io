@@ -3,216 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Relatório de Vendas</title>
+    <title>Admin Geral - Relatório de Vendas</title>
     <style>
-        /* Estilos gerais herdados e simplificados do seu index.html */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary-color: #3B82F6;
+            --success-color: #10B981;
+            --danger-color: #EF4444;
+            --light-gray: #F3F4F6;
+            --medium-gray: #E5E7EB;
+            --dark-gray: #374151;
+            --text-gray: #6B7280;
         }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #F3F4F6;
-            color: #374151;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
             padding: 16px;
         }
-        .container {
-            width: 100%;
-            max-width: 800px;
-        }
-        .hidden {
-            display: none !important;
-        }
+        .container { width: 100%; max-width: 900px; margin: 20px auto; }
+        .hidden { display: none !important; }
 
-        /* Estilos para tela de Login */
-        .auth-container {
+        .card {
             background: white;
-            padding: 40px;
             border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .auth-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-        .auth-subtitle {
-            font-size: 16px;
-            color: #6B7280;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             margin-bottom: 24px;
         }
         .primary-button {
-            width: 100%;
-            border: none;
-            padding: 16px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            background: #3B82F6;
-            color: white;
-            transition: background 0.2s;
+            border: none; padding: 16px; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: var(--primary-color); color: white; transition: background 0.2s;
         }
-        .primary-button:hover {
-            background: #2563EB;
-        }
+        .primary-button:hover { background: #2563EB; }
         .logout-button {
-             background: none;
-             border: none;
-             color: #EF4444;
-             cursor: pointer;
-             font-weight: 500;
-             margin-top: 20px;
+             background: none; border: 1px solid var(--medium-gray); color: var(--text-gray); cursor: pointer;
+             font-weight: 500; padding: 8px 12px; border-radius: 8px; transition: all 0.2s;
         }
+        .logout-button:hover { background-color: var(--light-gray); color: var(--dark-gray); }
 
-        /* Estilos para o Conteúdo do Admin */
-        .admin-content {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        .header {
+        .status-container { padding: 40px; text-align: center; }
+        .status-title { font-size: 24px; font-weight: bold; margin-bottom: 8px; }
+        .status-subtitle { font-size: 16px; color: var(--text-gray); margin-bottom: 24px; }
+
+        .admin-header {
             padding: 24px;
-            border-bottom: 1px solid #E5E7EB;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-        }
-        .header-title {
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .header-subtitle {
-            font-size: 16px;
-            color: #6B7280;
-        }
-        .stats {
-            background: #F9FAFB;
-            padding: 24px;
-            border-bottom: 1px solid #E5E7EB;
-            text-align: center;
-        }
-        .stat-number {
-            font-size: 40px;
-            font-weight: bold;
-            color: #10B981;
-        }
-        .stat-label {
-            font-size: 14px;
-            color: #6B7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .list-container {
-            padding: 24px;
-            max-height: 50vh;
-            overflow-y: auto;
-        }
-        .list-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-        .ticket-card {
-            display: flex;
             align-items: center;
-            padding: 16px;
-            border: 1px solid #E5E7EB;
-            border-radius: 12px;
-            margin-bottom: 12px;
+            border-bottom: 1px solid var(--medium-gray);
         }
-        .ticket-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #3B82F6;
-            width: 60px;
-            text-align: center;
-        }
-        .ticket-details {
-            margin-left: 16px;
-            border-left: 1px solid #E5E7EB;
-            padding-left: 16px;
-        }
-        .ticket-buyer {
-            font-weight: 600;
-            font-size: 16px;
-        }
-        .ticket-phone {
-            font-size: 14px;
-            color: #6B7280;
-        }
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: #6B7280;
-        }
+        .admin-header-title { font-size: 28px; font-weight: bold; }
         
-        .loading-spinner { 
-            border: 4px solid #f3f3f3; 
-            border-top: 4px solid #3498db; 
-            border-radius: 50%; 
-            width: 40px; 
-            height: 40px; 
-            animation: spin 1s linear infinite; 
-            margin: 20px auto; 
+        .global-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            padding: 24px;
         }
+        .stat-item { text-align: center; }
+        .stat-number { font-size: 32px; font-weight: bold; }
+        .stat-label { font-size: 14px; color: var(--text-gray); text-transform: uppercase; }
+
+        .vendor-list-container { padding: 0 24px 24px; }
+        .vendor-accordion-header {
+            width: 100%; background: none; border: 1px solid var(--medium-gray); border-radius: 12px;
+            padding: 16px; text-align: left; font-size: 16px; font-weight: 600;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; transition: all 0.2s; margin-top: 12px;
+        }
+        .vendor-accordion-header:hover { border-color: var(--primary-color); background-color: #F9FAFB; }
+        .vendor-accordion-header .arrow { transition: transform 0.3s; }
+        .vendor-accordion-header.active .arrow { transform: rotate(180deg); }
+        .vendor-stats { display: flex; gap: 20px; align-items: center; color: var(--text-gray); font-size: 14px; }
+        .vendor-stats strong { color: var(--dark-gray); }
+
+        .vendor-details-content {
+            padding: 20px; border: 1px solid var(--medium-gray); border-top: none;
+            border-radius: 0 0 12px 12px; margin-top: -1px; display: none;
+        }
+
+        .ticket-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+        .ticket-card { display: flex; align-items: center; padding: 12px; border: 1px solid var(--medium-gray); border-radius: 8px; }
+        .ticket-number { font-size: 20px; font-weight: bold; color: var(--primary-color); width: 50px; text-align: center; }
+        .ticket-details { margin-left: 12px; }
+        .ticket-buyer { font-weight: 500; font-size: 14px; }
+        .ticket-phone { font-size: 12px; color: var(--text-gray); }
+
+        .no-data, .loading { text-align: center; padding: 40px; color: var(--text-gray); font-size: 16px; }
+        .loading-spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div id="authContainer" class="auth-container">
-            <h1 class="auth-title">Área do Administrador</h1>
-            <p class="auth-subtitle">Faça login para ver o relatório de vendas.</p>
+        <!-- Tela de Login -->
+        <div id="authContainer" class="card status-container">
+            <h1 class="status-title">Painel de Controlo Geral</h1>
+            <p class="status-subtitle">Acesso restrito ao administrador.</p>
             <button id="loginBtn" class="primary-button">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/></svg>
                 Entrar com Google
             </button>
         </div>
-
-        <div id="loadingContainer" class="hidden no-data">
-             <div class="loading-spinner"></div>
-             <p>Carregando dados da rifa...</p>
+        
+        <!-- Tela de Acesso Negado -->
+        <div id="accessDeniedContainer" class="card status-container hidden">
+            <h1 class="status-title" style="color: var(--danger-color);">Acesso Negado</h1>
+            <p id="accessDeniedMessage" class="status-subtitle">Esta conta não tem permissão para visualizar este painel.</p>
+            <button id="logoutDeniedBtn" class="logout-button">Sair e tentar com outra conta</button>
         </div>
 
-        <div id="adminContent" class="admin-content hidden">
-            <div class="header">
-                <div>
-                    <h1 id="vendedorName" class="header-title">Nome do Vendedor</h1>
-                    <p class="header-subtitle">Relatório de Vendas em Tempo Real</p>
+        <!-- Conteúdo Principal do Admin -->
+        <div id="adminContent" class="hidden">
+            <div class="card">
+                <div class="admin-header">
+                    <h1 class="admin-header-title">Relatório Geral</h1>
+                    <button id="logoutBtn" class="logout-button">Sair</button>
                 </div>
-                <button id="logoutBtn" class="logout-button">Sair</button>
+                <div id="globalStats" class="global-stats"></div>
             </div>
-            <div class="stats">
-                <div id="totalVendido" class="stat-number">0</div>
-                <div class="stat-label">Números Vendidos</div>
-            </div>
-            <div class="list-container">
-                <h2 class="list-title">Detalhes dos Números Vendidos</h2>
-                <div id="soldNumbersList">
-                    </div>
+            <h2 style="margin: 24px 0 12px; font-weight: 600;">Vendedores</h2>
+            <div id="vendorsListContainer">
+                 <div id="loadingContainer" class="loading card">
+                     <div class="loading-spinner"></div>
+                     <p>A verificar permissões e a carregar dados...</p>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Bibliotecas Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // SUA CONFIGURAÇÃO DO FIREBASE (a mesma do index.html)
+        const ADMIN_EMAIL = 'cloudp4@gmail.com';
+
         const firebaseConfig = {
             apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
             authDomain: "rifaacs-69cef.firebaseapp.com",
@@ -220,122 +149,132 @@
             storageBucket: "rifaacs-69cef.appspot.com",
             messagingSenderId: "568565118428",
             appId: "1:568565118428:web:cc16277171966ef1208b19",
-            measurementId: "G-GDGLK7436E"
         };
         
-        // Inicialização do Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Elementos da UI
         const ui = {
             authContainer: document.getElementById('authContainer'),
-            loadingContainer: document.getElementById('loadingContainer'),
+            accessDeniedContainer: document.getElementById('accessDeniedContainer'),
+            accessDeniedMessage: document.getElementById('accessDeniedMessage'),
             adminContent: document.getElementById('adminContent'),
+            loadingContainer: document.getElementById('loadingContainer'),
             loginBtn: document.getElementById('loginBtn'),
             logoutBtn: document.getElementById('logoutBtn'),
-            vendedorName: document.getElementById('vendedorName'),
-            totalVendido: document.getElementById('totalVendido'),
-            soldNumbersList: document.getElementById('soldNumbersList'),
+            logoutDeniedBtn: document.getElementById('logoutDeniedBtn'),
+            globalStats: document.getElementById('globalStats'),
+            vendorsListContainer: document.getElementById('vendorsListContainer'),
         };
 
-        let unsubscribeRaffleListener = null;
+        let unsubscribeFromRaffles = null;
 
-        // Monitora o estado da autenticação do usuário
         onAuthStateChanged(auth, user => {
             if (user) {
-                // Usuário está logado
-                ui.authContainer.classList.add('hidden');
-                ui.adminContent.classList.add('hidden');
-                ui.loadingContainer.classList.remove('hidden');
-                fetchRaffleData(user.uid);
+                if (user.email.toLowerCase() === ADMIN_EMAIL) {
+                    showScreen('admin');
+                    fetchAllRaffles();
+                } else {
+                    ui.accessDeniedMessage.textContent = `A conta ${user.email} não tem permissão para visualizar este painel.`;
+                    showScreen('denied');
+                }
             } else {
-                // Usuário não está logado
-                if (unsubscribeRaffleListener) unsubscribeRaffleListener(); // Para de ouvir dados antigos
-                ui.authContainer.classList.remove('hidden');
-                ui.loadingContainer.classList.add('hidden');
-                ui.adminContent.classList.add('hidden');
+                if (unsubscribeFromRaffles) unsubscribeFromRaffles();
+                showScreen('login');
             }
         });
 
-        // Função para buscar e exibir os dados da rifa
-        function fetchRaffleData(userId) {
-            const raffleDocRef = doc(db, 'rifas', userId);
+        function showScreen(screenName) {
+            ui.authContainer.classList.add('hidden');
+            ui.adminContent.classList.add('hidden');
+            ui.accessDeniedContainer.classList.add('hidden');
+            
+            if (screenName === 'login') ui.authContainer.classList.remove('hidden');
+            if (screenName === 'admin') ui.adminContent.classList.remove('hidden');
+            if (screenName === 'denied') ui.accessDeniedContainer.classList.remove('hidden');
+        }
 
-            unsubscribeRaffleListener = onSnapshot(raffleDocRef, (docSnap) => {
+        function fetchAllRaffles() {
+            ui.loadingContainer.classList.remove('hidden');
+            const rafflesCollection = collection(db, 'rifas');
+            
+            unsubscribeFromRaffles = onSnapshot(rafflesCollection, (querySnapshot) => {
+                const allRaffles = [];
+                querySnapshot.forEach((doc) => {
+                    allRaffles.push({ id: doc.id, ...doc.data() });
+                });
+                renderAdminDashboard(allRaffles);
                 ui.loadingContainer.classList.add('hidden');
-                ui.adminContent.classList.remove('hidden');
-
-                if (docSnap.exists()) {
-                    const raffleData = docSnap.data();
-                    renderData(raffleData);
-                } else {
-                    ui.soldNumbersList.innerHTML = `<div class="no-data">Nenhuma rifa foi encontrada para este usuário. Crie uma na página principal.</div>`;
-                    ui.vendedorName.textContent = "Nenhuma Rifa Encontrada";
-                    ui.totalVendido.textContent = "0";
-                }
             }, (error) => {
-                console.error("Erro ao buscar dados:", error);
-                ui.loadingContainer.classList.add('hidden');
-                ui.soldNumbersList.innerHTML = `<div class="no-data">Erro de permissão ou conexão. Não foi possível carregar os dados.</div>`;
+                console.error("Erro de permissão ou conexão:", error);
+                ui.vendorsListContainer.innerHTML = `<div class="no-data card"><strong>Erro ao obter dados.</strong><br>Verifique as suas regras de segurança no Firestore para garantir que o admin tem permissão de leitura.</div>`;
             });
         }
         
-        // Função para renderizar os dados na tela
-        function renderData(data) {
-            // Renderiza o cabeçalho
-            ui.vendedorName.textContent = data.vendedor || "Vendedor não definido";
+        function renderAdminDashboard(raffles) {
+            if (!raffles || raffles.length === 0) {
+                ui.vendorsListContainer.innerHTML = `<div class="no-data card">Nenhuma rifa encontrada na base de dados.</div>`;
+                return;
+            }
+
+            const totalVendors = raffles.length;
+            const totalTicketsSold = raffles.reduce((total, raffle) => total + (raffle.numeros ? raffle.numeros.filter(n => n.vendido).length : 0), 0);
             
-            // Filtra e ordena os números vendidos
-            const vendidos = data.numeros
-                .filter(n => n.vendido)
-                .sort((a, b) => a.numero - b.numero);
+            ui.globalStats.innerHTML = `
+                <div class="stat-item"><div class="stat-number" style="color: var(--primary-color);">${totalVendors}</div><div class="stat-label">Vendedores</div></div>
+                <div class="stat-item"><div class="stat-number" style="color: var(--success-color);">${totalTicketsSold}</div><div class="stat-label">Total de Números Vendidos</div></div>
+            `;
+            
+            ui.vendorsListContainer.innerHTML = '';
+            raffles.sort((a,b) => a.vendedor.localeCompare(b.vendedor)).forEach(raffle => {
+                const soldCount = raffle.numeros ? raffle.numeros.filter(n => n.vendido).length : 0;
+                const totalCount = raffle.numeros ? raffle.numeros.length : 0;
+                
+                const vendorElement = document.createElement('div');
+                vendorElement.className = 'vendor-accordion';
+                vendorElement.innerHTML = `
+                    <button class="vendor-accordion-header">
+                        <span>${raffle.vendedor || 'Vendedor Sem Nome'}</span>
+                        <div class="vendor-stats"><span>Vendidos: <strong>${soldCount} / ${totalCount}</strong></span><span class="arrow">▼</span></div>
+                    </button>
+                    <div class="vendor-details-content"><div class="ticket-list"></div></div>
+                `;
 
-            // Atualiza as estatísticas
-            ui.totalVendido.textContent = vendidos.length;
+                const ticketList = vendorElement.querySelector('.ticket-list');
+                const soldTickets = (raffle.numeros || []).filter(n => n.vendido).sort((a,b) => a.numero - b.numero);
 
-            // Limpa a lista antiga
-            ui.soldNumbersList.innerHTML = '';
+                if(soldTickets.length > 0) {
+                    soldTickets.forEach(ticket => {
+                        ticketList.innerHTML += `<div class="ticket-card"><div class="ticket-number">${ticket.numero}</div><div class="ticket-details"><div class="ticket-buyer">${ticket.comprador || 'Não informado'}</div><div class="ticket-phone">${ticket.telefone || ''}</div></div></div>`;
+                    });
+                } else {
+                    ticketList.innerHTML = `<p style="color: var(--text-gray); font-size: 14px;">Nenhum número vendido.</p>`;
+                }
+                ui.vendorsListContainer.appendChild(vendorElement);
+            });
 
-            // Renderiza a lista de números vendidos
-            if (vendidos.length === 0) {
-                ui.soldNumbersList.innerHTML = `<div class="no-data">Nenhum número foi vendido ainda.</div>`;
-            } else {
-                vendidos.forEach(ticket => {
-                    const card = document.createElement('div');
-                    card.className = 'ticket-card';
-                    card.innerHTML = `
-                        <div class="ticket-number">${ticket.numero}</div>
-                        <div class="ticket-details">
-                            <div class="ticket-buyer">${ticket.comprador || 'Comprador não informado'}</div>
-                            <div class="ticket-phone">${ticket.telefone || 'Telefone não informado'}</div>
-                        </div>
-                    `;
-                    ui.soldNumbersList.appendChild(card);
+            document.querySelectorAll('.vendor-accordion-header').forEach(button => {
+                button.addEventListener('click', () => {
+                    button.classList.toggle('active');
+                    const content = button.nextElementSibling;
+                    content.style.display = content.style.display === "block" ? "none" : "block";
                 });
-            }
+            });
         }
 
-        // Funções de Login e Logout
         async function signInWithGoogle() {
-            try {
-                await signInWithPopup(auth, new GoogleAuthProvider());
-            } catch (error) {
-                console.error("Erro no login com Google:", error);
-                alert(`Falha no login: ${error.message}`);
-            }
+            try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
+            catch (error) { console.error("Erro no login:", error); alert(`Falha no login: ${error.message}`); }
         }
 
-        async function fazerLogout() {
-            if(confirm('Deseja realmente sair?')) {
-               await signOut(auth);
-            }
+        async function doLogout() {
+            await signOut(auth);
         }
 
-        // Event Listeners
         ui.loginBtn.addEventListener('click', signInWithGoogle);
-        ui.logoutBtn.addEventListener('click', fazerLogout);
+        ui.logoutBtn.addEventListener('click', doLogout);
+        ui.logoutDeniedBtn.addEventListener('click', doLogout);
 
     </script>
 </body>
