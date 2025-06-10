@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impressão de Canhotos da Rifa</title>
+    <style>
+        :root {
+            --primary-color: #3B82F6;
+            --light-gray: #F3F4F6;
+            --dark-gray: #374151;
+            --text-gray: #6B7280;
+            --a4-width: 21cm;
+            --a4-height: 29.7cm;
+        }
+        
+        /* Estilos da Interface (Controles) */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .controls {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .controls h1 { font-size: 24px; margin-bottom: 10px; }
+        .controls p { font-size: 16px; color: var(--text-gray); margin-bottom: 20px; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { font-weight: 600; margin-right: 10px; }
+        .form-group select, .form-group button {
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #D1D5DB;
+        }
+        
+        .button {
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+        .button:hover { background: #2563EB; }
+        .button:disabled { background: #9CA3AF; cursor: not-allowed; }
+        
+        #printBtn { background: #10B981; }
+        #printBtn:hover { background: #059669; }
+
+        .hidden { display: none; }
+        
+        /* Estilos da Área de Impressão */
+        #print-area {
+            width: var(--a4-width);
+            min-height: var(--a4-height);
+            background: white;
+            padding: 1cm; /* Margens da página */
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 5 colunas */
+            grid-auto-rows: 4.74cm; /* Altura de cada linha */
+            gap: 0;
+        }
+
+        .canhoto-stub {
+            box-sizing: border-box;
+            border: 1px dashed #888;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            font-size: 10pt;
+        }
+        
+        .canhoto-stub .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .canhoto-stub .header .numero {
+            font-size: 20pt;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .canhoto-stub .body p {
+            margin: 4px 0;
+            line-height: 1.3;
+        }
+        .canhoto-stub .body strong {
+            display: block;
+            font-size: 8pt;
+            color: #555;
+        }
+        
+        .canhoto-stub .footer {
+            font-size: 7pt;
+            color: #777;
+            text-align: right;
+        }
+
+        /* Regras de Impressão */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+            }
+            .controls {
+                display: none; /* Esconde os controles na hora de imprimir */
+            }
+            #print-area {
+                box-shadow: none;
+                width: 100%;
+                min-height: initial;
+                padding: 0;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controlsContainer" class="controls">
+        <div id="authContainer">
+            <h1>Impressão de Canhotos</h1>
+            <p>Faça login como administrador para gerar os canhotos para o sorteio.</p>
+            <button id="loginBtn" class="button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="vertical-align: middle; margin-right: 8px;"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/></svg>
+                Entrar com Google
+            </button>
+        </div>
+        
+        <div id="accessDeniedContainer" class="hidden">
+             <h1>Acesso Negado</h1>
+             <p>Esta conta não tem permissão para aceder a esta funcionalidade.</p>
+             <button id="logoutDeniedBtn" class="button" style="background-color: #EF4444;">Sair</button>
+        </div>
+
+        <div id="mainControls" class="hidden">
+             <h1>Gerar Canhotos para Impressão</h1>
+             <p>Selecione o vendedor e clique em "Gerar". Apenas os números vendidos serão exibidos.</p>
+             <div class="form-group">
+                <label for="vendorSelect">Vendedor:</label>
+                <select id="vendorSelect"></select>
+             </div>
+             <div class="form-group">
+                <button id="generateBtn" class="button">Gerar Canhotos</button>
+                <button id="printBtn" class="button" disabled>Imprimir</button>
+             </div>
+        </div>
+    </div>
+
+    <div id="print-area">
+        </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const ADMIN_EMAIL = 'cloudp4@gmail.com';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
+            authDomain: "rifaacs-69cef.firebaseapp.com",
+            projectId: "rifaacs-69cef",
+            storageBucket: "rifaacs-69cef.appspot.com",
+            messagingSenderId: "568565118428",
+            appId: "1:568565118428:web:cc16277171966ef1208b19",
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const ui = {
+            authContainer: document.getElementById('authContainer'),
+            accessDeniedContainer: document.getElementById('accessDeniedContainer'),
+            mainControls: document.getElementById('mainControls'),
+            loginBtn: document.getElementById('loginBtn'),
+            logoutDeniedBtn: document.getElementById('logoutDeniedBtn'),
+            vendorSelect: document.getElementById('vendorSelect'),
+            generateBtn: document.getElementById('generateBtn'),
+            printBtn: document.getElementById('printBtn'),
+            printArea: document.getElementById('print-area'),
+        };
+
+        let allRafflesData = []; // Armazena dados de todas as rifas
+
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                if (user.email.toLowerCase() === ADMIN_EMAIL) {
+                    showScreen('main');
+                    fetchAllRaffles();
+                } else {
+                    showScreen('denied');
+                }
+            } else {
+                showScreen('login');
+            }
+        });
+
+        function showScreen(screenName) {
+            ui.authContainer.classList.add('hidden');
+            ui.accessDeniedContainer.classList.add('hidden');
+            ui.mainControls.classList.add('hidden');
+
+            if (screenName === 'login') ui.authContainer.classList.remove('hidden');
+            if (screenName === 'denied') ui.accessDeniedContainer.classList.remove('hidden');
+            if (screenName === 'main') ui.mainControls.classList.remove('hidden');
+        }
+
+        function fetchAllRaffles() {
+            const rafflesCollection = collection(db, 'rifas');
+            onSnapshot(rafflesCollection, (querySnapshot) => {
+                allRafflesData = [];
+                querySnapshot.forEach((doc) => {
+                    allRafflesData.push({ id: doc.id, ...doc.data() });
+                });
+                populateVendorSelect();
+            }, (error) => {
+                console.error("Erro ao buscar dados:", error);
+                alert("Erro ao carregar dados dos vendedores. Verifique as regras de segurança.");
+            });
+        }
+
+        function populateVendorSelect() {
+            ui.vendorSelect.innerHTML = '<option value="all">Todos os Vendedores</option>';
+            allRafflesData.sort((a, b) => a.vendedor.localeCompare(b.vendedor)).forEach(raffle => {
+                const option = document.createElement('option');
+                option.value = raffle.id;
+                option.textContent = raffle.vendedor;
+                ui.vendorSelect.appendChild(option);
+            });
+        }
+        
+        function generateStubs() {
+            const selectedVendorId = ui.vendorSelect.value;
+            ui.printArea.innerHTML = ''; // Limpa a área de impressão
+            
+            let stubsToGenerate = [];
+            
+            const rafflesToProcess = (selectedVendorId === 'all')
+                ? allRafflesData
+                : allRafflesData.filter(r => r.id === selectedVendorId);
+
+            rafflesToProcess.forEach(raffle => {
+                const soldNumbers = raffle.numeros.filter(n => n.vendido && n.comprador);
+                soldNumbers.forEach(number => {
+                    stubsToGenerate.push({
+                        numero: number.numero,
+                        comprador: number.comprador,
+                        telefone: number.telefone,
+                        vendedor: raffle.vendedor
+                    });
+                });
+            });
+
+            if (stubsToGenerate.length === 0) {
+                alert('Nenhum número vendido com nome de comprador encontrado para a seleção atual.');
+                ui.printBtn.disabled = true;
+                return;
+            }
+            
+            stubsToGenerate.sort((a,b) => a.numero - b.numero).forEach(stubData => {
+                const stubElement = document.createElement('div');
+                stubElement.className = 'canhoto-stub';
+                
+                stubElement.innerHTML = `
+                    <div class="header">
+                        <span>Rifa</span>
+                        <span class="numero">${stubData.numero}</span>
+                    </div>
+                    <div class="body">
+                        <p><strong>Comprador:</strong> ${stubData.comprador || 'Não informado'}</p>
+                        <p><strong>Telefone:</strong> ${stubData.telefone || 'Não informado'}</p>
+                    </div>
+                    <div class="footer">
+                        Vendido por: ${stubData.vendedor}
+                    </div>
+                `;
+                ui.printArea.appendChild(stubElement);
+            });
+            
+            ui.printBtn.disabled = false;
+        }
+
+        // Event Listeners
+        ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
+        ui.logoutDeniedBtn.addEventListener('click', () => signOut(auth));
+        ui.generateBtn.addEventListener('click', generateStubs);
+        ui.printBtn.addEventListener('click', () => window.print());
+
+    </script>
+</body>
+</html>
