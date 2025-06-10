@@ -85,6 +85,8 @@
             justify-content: space-between;
             overflow: hidden;
             font-size: 10pt;
+            /* CORREÇÃO CRÍTICA PARA IMPRESSÃO: Evita que o canhoto seja cortado */
+            break-inside: avoid;
         }
         
         .canhoto-stub .header {
@@ -137,6 +139,7 @@
 <body>
 
     <div id="controlsContainer" class="controls">
+        <!-- Tela de Login -->
         <div id="authContainer">
             <h1>Impressão de Canhotos</h1>
             <p>Faça login como administrador para gerar os canhotos para o sorteio.</p>
@@ -146,12 +149,14 @@
             </button>
         </div>
         
+        <!-- Tela de Acesso Negado -->
         <div id="accessDeniedContainer" class="hidden">
              <h1>Acesso Negado</h1>
              <p>Esta conta não tem permissão para aceder a esta funcionalidade.</p>
              <button id="logoutDeniedBtn" class="button" style="background-color: #EF4444;">Sair</button>
         </div>
 
+        <!-- Controles Principais -->
         <div id="mainControls" class="hidden">
              <h1>Gerar Canhotos para Impressão</h1>
              <p>Selecione o vendedor e clique em "Gerar". Apenas os números vendidos serão exibidos.</p>
@@ -166,9 +171,12 @@
         </div>
     </div>
 
+    <!-- Área de Impressão -->
     <div id="print-area">
-        </div>
+        <!-- Os canhotos serão gerados aqui pelo JavaScript -->
+    </div>
 
+    <!-- Bibliotecas Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
