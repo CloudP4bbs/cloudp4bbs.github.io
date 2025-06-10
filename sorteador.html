@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteador da Rifa</title>
+    <style>
+        :root {
+            --primary-color: #3B82F6;
+            --success-color: #10B981;
+            --danger-color: #EF4444;
+            --warning-color: #F97316;
+            --light-gray: #F3F4F6;
+            --dark-gray: #374151;
+            --text-gray: #6B7280;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        
+        .card h1 { font-size: 28px; margin-bottom: 8px; }
+        .card h2 { font-size: 22px; margin-bottom: 16px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; }
+        .card p { font-size: 16px; color: var(--text-gray); margin-bottom: 20px; }
+
+        .button {
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .button:disabled { background: #9CA3AF; cursor: not-allowed; }
+        
+        .primary-button { background-color: var(--primary-color); color: white; }
+        .danger-button { background-color: var(--danger-color); color: white; }
+        .warning-button { background-color: var(--warning-color); color: white; }
+
+        .hidden { display: none !important; }
+
+        /* Estilos do Sorteador */
+        .sorter-panel p {
+            font-size: 20px;
+            font-weight: 500;
+            color: var(--dark-gray);
+        }
+        .sorter-panel strong {
+            font-size: 32px;
+            color: var(--primary-color);
+        }
+
+        /* Estilos dos Resultados */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            text-align: left;
+        }
+        .winner-card {
+            background: var(--light-gray);
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid;
+        }
+        .winner-card.place-1 { border-color: #FBBF24; background-color: #FFFBEB; } /* Ouro */
+        .winner-card.place-2 { border-color: #D1D5DB; background-color: #F9FAFB; } /* Prata */
+        .winner-card.place-3 { border-color: #F59E0B; background-color: #FFF7ED; } /* Bronze */
+        
+        .winner-card .place { font-size: 24px; font-weight: bold; }
+        .winner-card .place-1 .place { color: #D97706; }
+        .winner-card .place-2 .place { color: #4B5563; }
+        .winner-card .place-3 .place { color: #D97706; }
+        
+        .winner-card .number { font-size: 48px; font-weight: bold; text-align: center; margin: 10px 0; color: var(--dark-gray); }
+        .winner-card p { font-size: 14px; margin: 4px 0; color: var(--dark-gray); }
+        .winner-card p strong { color: var(--text-gray); font-weight: normal; }
+
+        /* Estilos do Histórico */
+        .history-item {
+            text-align: left;
+            padding: 16px;
+            border: 1px solid #E5E7EB;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        .history-item p { font-size: 14px; margin: 2px 0; }
+        .history-item strong { color: var(--dark-gray); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Telas de Autenticação e Estados -->
+        <div id="authContainer" class="card">
+            <h1>Sorteador de Rifas</h1>
+            <p>Faça login como administrador para realizar ou consultar sorteios.</p>
+            <button id="loginBtn" class="button primary-button">Entrar com Google</button>
+        </div>
+        
+        <div id="loadingContainer" class="card hidden">
+            <h1>A carregar...</h1>
+            <p>A verificar permissões e dados da rifa.</p>
+        </div>
+
+        <div id="accessDeniedContainer" class="card hidden">
+             <h1>Acesso Negado</h1>
+             <p>Esta conta não tem permissão para aceder a esta funcionalidade.</p>
+             <button id="logoutDeniedBtn" class="button danger-button">Sair</button>
+        </div>
+
+        <!-- Painel Principal do Sorteador -->
+        <div id="mainPanel" class="hidden">
+            <div class="card sorter-panel">
+                <h1>Painel do Sorteador</h1>
+                <p>Total de bilhetes vendidos aptos a participar:</p>
+                <p><strong id="totalParticipants">0</strong></p>
+                <button id="drawBtn" class="button warning-button">Realizar Novo Sorteio</button>
+            </div>
+
+            <div id="lastResultCard" class="card hidden">
+                <h2>🏆 Resultado do Último Sorteio 🏆</h2>
+                <div id="lastResultInfo"></div>
+                <div id="lastResultGrid" class="results-grid"></div>
+            </div>
+
+            <div class="card">
+                <h2>Histórico de Sorteios</h2>
+                <div id="historyList">
+                    <p>Nenhum sorteio realizado anteriormente.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const ADMIN_EMAIL = 'cloudp4@gmail.com';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
+            authDomain: "rifaacs-69cef.firebaseapp.com",
+            projectId: "rifaacs-69cef",
+            storageBucket: "rifaacs-69cef.appspot.com",
+            messagingSenderId: "568565118428",
+            appId: "1:568565118428:web:cc16277171966ef1208b19",
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const ui = {
+            authContainer: document.getElementById('authContainer'),
+            loadingContainer: document.getElementById('loadingContainer'),
+            accessDeniedContainer: document.getElementById('accessDeniedContainer'),
+            mainPanel: document.getElementById('mainPanel'),
+            loginBtn: document.getElementById('loginBtn'),
+            logoutDeniedBtn: document.getElementById('logoutDeniedBtn'),
+            totalParticipants: document.getElementById('totalParticipants'),
+            drawBtn: document.getElementById('drawBtn'),
+            lastResultCard: document.getElementById('lastResultCard'),
+            lastResultInfo: document.getElementById('lastResultInfo'),
+            lastResultGrid: document.getElementById('lastResultGrid'),
+            historyList: document.getElementById('historyList'),
+        };
+
+        let allSoldTickets = [];
+        let unsubscribeRaffles = null;
+        let unsubscribeDraws = null;
+
+        function showScreen(screenName) {
+            ['authContainer', 'loadingContainer', 'accessDeniedContainer', 'mainPanel'].forEach(s => ui[s].classList.add('hidden'));
+            ui[screenName].classList.remove('hidden');
+        }
+
+        onAuthStateChanged(auth, user => {
+            if (unsubscribeRaffles) unsubscribeRaffles();
+            if (unsubscribeDraws) unsubscribeDraws();
+
+            if (user) {
+                showScreen('loadingContainer');
+                if (user.email?.toLowerCase() === ADMIN_EMAIL) {
+                    fetchAllData();
+                } else {
+                    showScreen('accessDeniedContainer');
+                }
+            } else {
+                showScreen('authContainer');
+            }
+        });
+
+        function fetchAllData() {
+            // 1. Fetch all raffle data to get participants
+            const rafflesRef = collection(db, 'rifas');
+            unsubscribeRaffles = onSnapshot(rafflesRef, snapshot => {
+                allSoldTickets = [];
+                snapshot.forEach(doc => {
+                    const raffle = doc.data();
+                    const sold = (raffle.numeros || []).filter(n => n.vendido && n.comprador);
+                    sold.forEach(ticket => allSoldTickets.push({ ...ticket, vendedor: raffle.vendedor }));
+                });
+                ui.totalParticipants.textContent = allSoldTickets.length;
+                ui.drawBtn.disabled = allSoldTickets.length < 3;
+                showScreen('mainPanel');
+            }, error => console.error("Erro ao carregar rifas:", error));
+
+            // 2. Fetch all past draws for history
+            const drawsRef = collection(db, 'sorteios');
+            unsubscribeDraws = onSnapshot(drawsRef, snapshot => {
+                const draws = [];
+                snapshot.forEach(doc => draws.push({ id: doc.id, ...doc.data() }));
+                
+                // Ordena por data, do mais recente para o mais antigo
+                draws.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+                
+                renderHistory(draws);
+                if(draws.length > 0) {
+                    renderLastResult(draws[0]);
+                }
+            }, error => console.error("Erro ao carregar histórico de sorteios:", error));
+        }
+
+        function renderLastResult(drawData){
+            const date = drawData.timestamp.toDate();
+            const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+            const formattedTime = date.toLocaleTimeString('pt-BR');
+
+            ui.lastResultInfo.innerHTML = `<p>Sorteio realizado em <strong>${formattedDate}</strong> às <strong>${formattedTime}</strong> com <strong>${drawData.totalParticipantes}</strong> participantes.</p><p>ID do Sorteio: <strong>${drawData.id}</strong></p>`;
+            ui.lastResultGrid.innerHTML = '';
+
+            drawData.ganhadores.forEach(winner => {
+                const card = document.createElement('div');
+                card.className = `winner-card place-${winner.lugar}`;
+                card.innerHTML = `
+                    <div class="place">${winner.lugar}º Lugar</div>
+                    <div class="number">${winner.numero}</div>
+                    <p><strong>Comprador:</strong> ${winner.comprador}</p>
+                    <p><strong>Telefone:</strong> ${winner.telefone || 'Não inf.'}</p>
+                    <p><strong>Vendido por:</strong> ${winner.vendedor}</p>
+                `;
+                ui.lastResultGrid.appendChild(card);
+            });
+            ui.lastResultCard.classList.remove('hidden');
+        }
+
+        function renderHistory(draws) {
+            if (draws.length === 0) {
+                ui.historyList.innerHTML = '<p>Nenhum sorteio realizado anteriormente.</p>';
+                return;
+            }
+            ui.historyList.innerHTML = '';
+            draws.forEach(draw => {
+                const item = document.createElement('div');
+                item.className = 'history-item';
+                const winner1 = draw.ganhadores.find(g => g.lugar === 1);
+                item.innerHTML = `
+                    <p><strong>ID do Sorteio:</strong> ${draw.id}</p>
+                    <p><strong>Data:</strong> ${draw.timestamp.toDate().toLocaleString('pt-BR')}</p>
+                    <p><strong>1º Lugar:</strong> Nº ${winner1.numero} - ${winner1.comprador}</p>
+                `;
+                ui.historyList.appendChild(item);
+            });
+        }
+
+        async function performDraw() {
+            if (allSoldTickets.length < 3) {
+                alert("É necessário ter pelo menos 3 bilhetes vendidos para realizar o sorteio.");
+                return;
+            }
+
+            if (!confirm(`Tem a certeza que deseja realizar o sorteio com ${allSoldTickets.length} participantes? Esta ação é final e não pode ser desfeita.`)) {
+                return;
+            }
+
+            ui.drawBtn.disabled = true;
+            ui.drawBtn.textContent = 'A sortear...';
+
+            // Algoritmo Fisher-Yates para embaralhar o array de forma justa
+            let shuffled = [...allSoldTickets];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            const winnersData = [
+                { lugar: 1, ...shuffled[0] },
+                { lugar: 2, ...shuffled[1] },
+                { lugar: 3, ...shuffled[2] },
+            ];
+
+            const drawRecord = {
+                timestamp: serverTimestamp(),
+                totalParticipantes: allSoldTickets.length,
+                ganhadores: winnersData,
+                // Salva uma cópia de todos os participantes para auditoria
+                snapshotParticipantes: JSON.stringify(allSoldTickets.map(t => ({num: t.numero, nome: t.comprador})))
+            };
+
+            try {
+                await addDoc(collection(db, "sorteios"), drawRecord);
+                alert("Sorteio realizado e salvo com sucesso!");
+            } catch (error) {
+                console.error("Erro ao salvar o sorteio: ", error);
+                alert("Ocorreu um erro crítico ao salvar o resultado. Contacte o suporte.");
+            } finally {
+                ui.drawBtn.textContent = 'Realizar Novo Sorteio';
+                 // O botão ficará desabilitado até que novos dados sejam carregados, se necessário.
+                 // A lógica atual já faz isso com o onSnapshot.
+            }
+        }
+
+        // Event Listeners
+        ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
+        ui.logoutDeniedBtn.addEventListener('click', () => signOut(auth));
+        ui.drawBtn.addEventListener('click', performDraw);
+
+    </script>
+</body>
+</html>
