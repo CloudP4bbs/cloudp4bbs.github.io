@@ -4,17 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Impressão de Canhotos da Rifa</title>
-    <!-- NOVAS BIBLIOTECAS PARA GERAR PDF -->
+    <!-- Bibliotecas para gerar PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --primary-color: #3B82F6;
+            --success-color: #10B981;
+            --danger-color: #EF4444;
             --light-gray: #F3F4F6;
             --dark-gray: #374151;
             --text-gray: #6B7280;
             --a4-width: 21cm;
-            --a4-height: 29.7cm;
         }
         
         body {
@@ -27,7 +28,7 @@
             padding: 20px;
         }
 
-        .controls {
+        .card {
             width: 100%;
             max-width: 800px;
             background: white;
@@ -38,8 +39,8 @@
             text-align: center;
         }
         
-        .controls h1 { font-size: 24px; margin-bottom: 10px; }
-        .controls p { font-size: 16px; color: var(--text-gray); margin-bottom: 20px; }
+        .card h1 { font-size: 24px; margin-bottom: 10px; }
+        .card p { font-size: 16px; color: var(--text-gray); margin-bottom: 20px; }
 
         .form-group { margin-bottom: 15px; }
         .form-group label { font-weight: 600; margin-right: 10px; }
@@ -60,14 +61,13 @@
         .button:hover:not(:disabled) { background: #2563EB; }
         .button:disabled { background: #9CA3AF; cursor: not-allowed; }
         
-        #pdfBtn { background: #10B981; }
+        #pdfBtn { background: var(--success-color); }
         #pdfBtn:hover:not(:disabled) { background: #059669; }
 
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         
         #print-area {
             width: var(--a4-width);
-            min-height: var(--a4-height);
             background: white;
             padding: 1cm;
             box-shadow: 0 0 10px rgba(0,0,0,0.2);
@@ -98,7 +98,8 @@
 </head>
 <body>
 
-    <div id="controlsContainer" class="controls">
+    <!-- Container de Controles -->
+    <div id="controlsContainer" class="card">
         <!-- Tela de Login -->
         <div id="authContainer">
             <h1>Impressão de Canhotos</h1>
@@ -109,12 +110,20 @@
             </button>
         </div>
         
+        <!-- Tela de Carregamento/Verificação -->
+        <div id="loadingContainer" class="hidden">
+            <h1>A verificar...</h1>
+            <p>A verificar permissões. Por favor, aguarde.</p>
+        </div>
+
+        <!-- Tela de Acesso Negado -->
         <div id="accessDeniedContainer" class="hidden">
              <h1>Acesso Negado</h1>
              <p>Esta conta não tem permissão para aceder a esta funcionalidade.</p>
-             <button id="logoutDeniedBtn" class="button" style="background-color: #EF4444;">Sair</button>
+             <button id="logoutDeniedBtn" class="button" style="background-color: var(--danger-color);">Sair</button>
         </div>
 
+        <!-- Controles Principais -->
         <div id="mainControls" class="hidden">
              <h1>Gerar Canhotos para Impressão</h1>
              <p>Selecione o vendedor e clique em "Gerar". Depois, clique em "Gerar PDF".</p>
@@ -129,8 +138,8 @@
         </div>
     </div>
 
-    <!-- Área de Impressão -->
-    <div id="print-area">
+    <!-- Área de Impressão (inicialmente oculta) -->
+    <div id="print-area" class="hidden">
         <!-- Os canhotos serão gerados aqui pelo JavaScript -->
     </div>
 
@@ -156,7 +165,9 @@
         const db = getFirestore(app);
 
         const ui = {
+            controlsContainer: document.getElementById('controlsContainer'),
             authContainer: document.getElementById('authContainer'),
+            loadingContainer: document.getElementById('loadingContainer'),
             accessDeniedContainer: document.getElementById('accessDeniedContainer'),
             mainControls: document.getElementById('mainControls'),
             loginBtn: document.getElementById('loginBtn'),
@@ -168,31 +179,41 @@
         };
 
         let allRafflesData = [];
-
-        onAuthStateChanged(auth, user => {
-            if (user && user.email.toLowerCase() === ADMIN_EMAIL) {
-                showScreen('main');
-                fetchAllRaffles();
-            } else if (user) {
-                showScreen('denied');
-            } else {
-                showScreen('login');
-            }
-        });
+        let unsubscribeFromRaffles = null;
 
         function showScreen(screenName) {
-            ['authContainer', 'accessDeniedContainer', 'mainControls'].forEach(c => ui[c].classList.add('hidden'));
+            const screens = ['authContainer', 'loadingContainer', 'accessDeniedContainer', 'mainControls'];
+            screens.forEach(screen => {
+                if (ui[screen]) ui[screen].classList.add('hidden');
+            });
             if (ui[screenName]) ui[screenName].classList.remove('hidden');
         }
 
+        onAuthStateChanged(auth, user => {
+            if (unsubscribeFromRaffles) unsubscribeFromRaffles(); // Cancela a escuta anterior ao mudar de estado
+
+            if (user) {
+                showScreen('loadingContainer');
+                if (user.email && user.email.toLowerCase() === ADMIN_EMAIL) {
+                    fetchAllRaffles();
+                } else {
+                    showScreen('accessDeniedContainer');
+                }
+            } else {
+                showScreen('authContainer');
+            }
+        });
+
         function fetchAllRaffles() {
-            onSnapshot(collection(db, 'rifas'), (querySnapshot) => {
+            unsubscribeFromRaffles = onSnapshot(collection(db, 'rifas'), (querySnapshot) => {
                 allRafflesData = [];
                 querySnapshot.forEach((doc) => allRafflesData.push({ id: doc.id, ...doc.data() }));
                 populateVendorSelect();
+                showScreen('mainControls'); // Mostra os controles após carregar os dados
             }, (error) => {
                 console.error("Erro ao buscar dados:", error);
-                alert("Erro ao carregar dados dos vendedores.");
+                alert("Erro ao carregar dados dos vendedores. Verifique as regras de segurança.");
+                showScreen('authContainer');
             });
         }
 
@@ -214,16 +235,18 @@
             const rafflesToProcess = (selectedVendorId === 'all') ? allRafflesData : allRafflesData.filter(r => r.id === selectedVendorId);
 
             rafflesToProcess.forEach(raffle => {
-                const soldNumbers = raffle.numeros.filter(n => n.vendido && n.comprador);
+                const soldNumbers = (raffle.numeros || []).filter(n => n.vendido && n.comprador);
                 soldNumbers.forEach(number => stubsToGenerate.push({ ...number, vendedor: raffle.vendedor }));
             });
 
             if (stubsToGenerate.length === 0) {
                 alert('Nenhum número vendido com nome de comprador encontrado para a seleção atual.');
                 ui.pdfBtn.disabled = true;
+                ui.printArea.classList.add('hidden'); // Esconde a área se não houver nada a mostrar
                 return;
             }
             
+            ui.printArea.classList.remove('hidden'); // Mostra a área de impressão
             stubsToGenerate.sort((a,b) => a.numero - b.numero).forEach(stubData => {
                 const stubElement = document.createElement('div');
                 stubElement.className = 'canhoto-stub';
@@ -247,37 +270,31 @@
             const pdfBtn = ui.pdfBtn;
             
             pdfBtn.disabled = true;
-            pdfBtn.textContent = 'Gerando...';
+            pdfBtn.textContent = 'A gerar...';
 
             try {
-                const canvas = await html2canvas(printArea, {
-                    scale: 2, // Aumenta a qualidade da imagem
-                    useCORS: true,
-                    logging: false
-                });
+                const canvas = await html2canvas(printArea, { scale: 3, useCORS: true });
 
                 const imgData = canvas.toDataURL('image/png');
                 const pdf = new jsPDF('p', 'mm', 'a4');
                 
                 const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-                
                 const canvasWidth = canvas.width;
                 const canvasHeight = canvas.height;
                 const canvasAspectRatio = canvasWidth / canvasHeight;
-
                 const imgHeight = pdfWidth / canvasAspectRatio;
+                
                 let heightLeft = imgHeight;
                 let position = 0;
 
                 pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
-                heightLeft -= pdfHeight;
+                heightLeft -= pdf.internal.pageSize.getHeight();
 
                 while (heightLeft > 0) {
                     position = heightLeft - imgHeight;
                     pdf.addPage();
                     pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-                    heightLeft -= pdfHeight;
+                    heightLeft -= pdf.internal.pageSize.getHeight();
                 }
 
                 pdf.save(`canhotos-rifa-${new Date().toISOString().slice(0,10)}.pdf`);
