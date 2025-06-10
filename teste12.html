@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="RifaACS">
+    <title>RifaACS - Gerenciador de Rifas</title>
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%233B82F6' rx='40'/%3E%3Cpath fill='white' d='M45 60h90v15H45zm0 30h90v15H45zm0 30h90v15H45z'/%3E%3C/svg%3E">
+    <style>
+        /* Estilos CSS gerais */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F3F4F6; color: #374151;
+            -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+            touch-action: manipulation;
+        }
+        .container { min-height: 100vh; display: flex; flex-direction: column; }
+        .setup-container {
+            flex: 1; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; padding: 20px; min-height: 100vh;
+        }
+        .logo-container { text-align: center; margin-bottom: 30px; }
+        .app-icon {
+            width: 80px; height: 80px; background: #3B82F6; border-radius: 20px;
+            display: inline-flex; align-items: center; justify-content: center;
+            margin-bottom: 16px; font-size: 40px; color: white;
+        }
+        .app-title { font-size: 32px; font-weight: bold; color: #374151; margin-bottom: 8px; }
+        .app-subtitle { font-size: 16px; color: #6B7280; }
+        .form-container {
+            width: 100%; max-width: 400px; background: white;
+            padding: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .auth-container { width: 100%; max-width: 400px; text-align: center; }
+        .label {
+            font-size: 14px; font-weight: 500; color: #374151;
+            margin-bottom: 8px; margin-top: 16px; display: block;
+        }
+        .input, .premio-input {
+            width: 100%; border: 1px solid #D1D5DB; border-radius: 8px;
+            padding: 12px; font-size: 16px; background: white; color: #374151;
+            -webkit-appearance: none; appearance: none;
+        }
+        .premio-input { margin-bottom: 8px; }
+        .input:focus, .premio-input:focus {
+            outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .row { display: flex; gap: 12px; align-items: center; }
+        .interval-row { margin-bottom: 12px; }
+        .half-input { flex: 1; }
+        .primary-button, .secondary-button {
+            width: 100%; border: none; padding: 16px; border-radius: 8px;
+            font-size: 16px; font-weight: 500; margin-top: 24px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: background 0.2s; -webkit-tap-highlight-color: transparent;
+        }
+        .primary-button { background: #3B82F6; color: white; }
+        .primary-button:hover:not(:disabled) { background: #2563EB; }
+        .secondary-button { background: #E5E7EB; color: #374151; margin-top: 12px; }
+        .secondary-button:hover { background: #D1D5DB; }
+        .remove-interval-btn, .remove-image-btn {
+            background: none; border: none; color: #EF4444; font-size: 24px;
+            cursor: pointer; padding: 0 8px;
+        }
+        .primary-button:disabled { background: #D1D5DB; cursor: not-allowed; }
+        .header {
+            background: white; padding: 16px; display: flex; justify-content: space-between;
+            align-items: center; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            position: sticky; top: 0; z-index: 10;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-icon { width: 40px; height: 40px; background: #3B82F6; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; }
+        .header-title { font-size: 20px; font-weight: bold; color: #374151; }
+        .header-subtitle { font-size: 14px; color: #6B7280; }
+        .header-buttons { display: flex; gap: 8px; }
+        .header-button {
+            width: 40px; height: 40px; border: none; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; cursor: pointer; font-size: 18px;
+            transition: opacity 0.2s; -webkit-tap-highlight-color: transparent;
+        }
+        .header-button:hover { opacity: 0.9; }
+        .content { flex: 1; padding: 16px; overflow-y: auto; }
+        .stats-container { display: flex; gap: 12px; margin-bottom: 24px; }
+        .stat-card { flex: 1; background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); }
+        .stat-number { font-size: 24px; font-weight: bold; margin-bottom: 4px; }
+        .stat-label { font-size: 12px; color: #6B7280; }
+        .grid-container { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1); }
+        .grid-row { display: flex; justify-content: center; margin-bottom: 8px; flex-wrap: wrap; }
+        .numero-button { width: 50px; height: 50px; margin: 4px; border-radius: 8px; border: 2px solid; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
+        .numero-disponivel { background: white; border-color: #D1D5DB; color: #374151; }
+        .numero-disponivel:hover { border-color: #3B82F6; background: #F3F4F6; }
+        .numero-vendido { background: #10B981; border-color: #059669; color: white; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-container { background: white; border-radius: 16px; width: 100%; max-width: 400px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #E5E7EB; }
+        .modal-title { font-size: 20px; font-weight: bold; color: #374151; }
+        .close-button { width: 32px; height: 32px; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #374151; border-radius: 4px; -webkit-tap-highlight-color: transparent; }
+        .close-button:hover { background: #F3F4F6; }
+        .modal-content { padding: 20px; overflow-y: auto; }
+        #imagePreviewModal .modal-container { max-width: 500px; }
+        #imagePreviewContent { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        #generatedImagePreview { width: 100%; max-width: 450px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .image-actions { display: flex; gap: 12px; width: 100%; }
+        .hidden { display: none !important; }
+        .auto-save-indicator { position: fixed; bottom: 20px; right: 20px; background: #10B981; color: white; padding: 8px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; opacity: 0; transition: opacity 0.3s; z-index: 1001; display: flex; align-items: center; gap: 6px; }
+        .auto-save-indicator.show { opacity: 1; }
+        .loading-spinner, .spinner-sm { border-radius: 50%; animation: spin 1s linear infinite; border-style: solid; }
+        .loading-spinner { border-width: 4px; border-color: #f3f3f3; border-top-color: #3498db; width: 40px; height: 40px; margin: 20px auto; }
+        .spinner-sm { border-width: 2px; border-color: rgba(255,255,255,0.3); border-top-color: white; width: 16px; height: 16px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Estilos para preview da imagem */
+        .image-upload-container { margin-top: 16px; text-align: center; }
+        #imagePreview {
+            max-width: 150px; max-height: 150px; border-radius: 8px; border: 1px solid #D1D5DB;
+            margin: 10px auto; display: block; object-fit: cover;
+        }
+        #imagePreview[src=""] { display: none; }
+        .image-upload-actions { display: flex; gap: 10px; justify-content: center; }
+
+        @media (max-width: 480px) {
+            .form-container, .auth-container { margin: 0 10px; padding: 20px; }
+            .numero-button { width: 45px; height: 45px; }
+            .stats-container { flex-direction: column; gap: 8px; }
+            .stat-card { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="importFileInput" class="hidden" accept=".txt,text/plain">
+    <input type="file" id="imageUploadInput" class="hidden" accept="image/*">
+
+    <div class="container">
+        <!-- Telas de Carregamento e Setup -->
+        <div id="loadingScreen" class="setup-container">
+            <div id="loadingContent"><div class="loading-spinner"></div><p>Carregando dados...</p></div>
+        </div>
+
+        <div id="setupScreen" class="setup-container hidden">
+            <div class="logo-container">
+                <div class="app-icon">📊</div>
+                <div class="app-title">RifaACS</div>
+                <div class="app-subtitle">Crie e Gerencie sua Rifa</div>
+            </div>
+            <div id="authContainer" class="auth-container">
+                <p style="margin-bottom: 20px;">Faça login para salvar seus dados na nuvem.</p>
+                <button id="loginBtn" class="primary-button"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/></svg> Sincronizar com Google</button>
+            </div>
+            <div id="configContainer" class="form-container hidden">
+                <p style="text-align: center; margin-bottom: 16px;">Configure os detalhes da sua rifa.</p>
+                <label class="label">Nome da Rifa</label>
+                <input type="text" id="nomeRifaInput" class="input" value="Ação Entre Amigos">
+                <label class="label">Valor da Rifa</label>
+                <input type="text" id="valorRifaInput" class="input" value="R$ 10,00" placeholder="Ex: R$ 5,00">
+                <label class="label">Prêmios</label>
+                <div id="premiosContainer">
+                    <input type="text" class="premio-input" placeholder="1º Prêmio" value="R$ 1000">
+                    <input type="text" class="premio-input" placeholder="2º Prêmio" value="R$ 700">
+                    <input type="text" class="premio-input" placeholder="3º Prêmio" value="R$ 500">
+                </div>
+                <label class="label">PIX para Pagamento</label>
+                <input type="text" id="pixInput" class="input" placeholder="Sua chave PIX (CPF, e-mail, etc.)">
+                <label class="label">Nome do Vendedor</label>
+                <input type="text" id="vendedorInput" class="input" placeholder="Digite seu nome">
+                <label class="label">Intervalos de Números</label>
+                <div id="initialIntervalsContainer"></div>
+                <button id="addInitialIntervalBtn" class="secondary-button">Adicionar Intervalo</button>
+                <button id="comecarBtn" class="primary-button" disabled>Começar</button>
+            </div>
+        </div>
+
+        <!-- App Principal -->
+        <div id="mainApp" class="hidden">
+            <div class="header">
+                <div class="header-left">
+                    <div class="header-icon">📊</div>
+                    <div>
+                        <div class="header-title" id="headerRifaNome">Rifa</div>
+                        <div class="header-subtitle" id="vendedorHeader">Vendedor: </div>
+                    </div>
+                </div>
+                <div class="header-buttons">
+                    <button id="exportImageBtn" class="header-button" style="background: #8B5CF6;" title="Exportar Imagem para Compartilhar">📷</button>
+                    <button id="exportBtn" class="header-button" style="background: #10B981;" title="Exportar Relatório de Texto">📄</button>
+                    <button id="settingsBtn" class="header-button" style="background: #6366F1;" title="Configurações">⚙️</button>
+                    <button id="logoutBtn" class="header-button" style="background: #EF4444;" title="Sair (Logout)">🚪</button>
+                </div>
+            </div>
+            <div class="content">
+                <div class="stats-container">
+                    <div class="stat-card"><div class="stat-number" style="color: #10B981;" id="vendidosCount">0</div><div class="stat-label">Vendidos</div></div>
+                    <div class="stat-card"><div class="stat-number" style="color: #3B82F6;" id="disponiveisCount">0</div><div class="stat-label">Disponíveis</div></div>
+                    <div class="stat-card"><div class="stat-number" style="color: #374151;" id="totalCount">0</div><div class="stat-label">Total</div></div>
+                </div>
+                <div class="grid-container"><div id="numerosGrid"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="autoSaveIndicator" class="auto-save-indicator">Sincronizado</div>
+    <div id="numeroModal" class="modal-overlay hidden"></div>
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurações da Rifa</h2>
+                <button class="close-button" onclick="window.closeSettingsModal()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <div class="image-upload-container">
+                    <label class="label">Logotipo da Rifa (Opcional)</label>
+                    <p style="font-size: 12px; color: #6B7280; margin-bottom: 10px;">Para imagens pequenas, como logotipos.</p>
+                    <img id="imagePreview" src="" alt="Preview do logotipo">
+                    <div class="image-upload-actions">
+                         <button id="imageUploadBtn" class="secondary-button" style="margin-top: 5px; width: auto; padding: 10px 15px;">Escolher Imagem</button>
+                         <button id="removeImageBtn" class="remove-image-btn" title="Remover Imagem">&times;</button>
+                    </div>
+                </div>
+                
+                <label class="label">Nome da Rifa</label>
+                <input type="text" id="nomeRifaEditInput" class="input">
+                <label class="label">Valor da Rifa</label>
+                <input type="text" id="valorRifaEditInput" class="input">
+                <label class="label">Prêmios</label>
+                <div id="premiosEditContainer"></div>
+                <label class="label">PIX para Pagamento</label>
+                <input type="text" id="pixEditInput" class="input">
+                <label class="label">Nome do Vendedor</label>
+                <input type="text" id="vendedorEditInput" class="input">
+                <label class="label">Intervalos de Números</label>
+                <div id="editIntervalsContainer"></div>
+                <button id="addEditIntervalBtn" class="secondary-button">Adicionar Intervalo</button>
+                <button id="importBtn" class="secondary-button" style="border: 1px dashed #6B7280;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg> Importar de Relatório</button>
+                <button id="saveSettingsBtn" class="primary-button">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="imagePreviewModal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 class="modal-title">Pré-visualização da Imagem</h2>
+                <button class="close-button" onclick="window.closeImagePreviewModal()">&times;</button>
+            </div>
+            <div class="modal-content" id="imagePreviewContent">
+                <div id="imageLoadingSpinner" class="loading-spinner"></div>
+                <img id="generatedImagePreview" class="hidden" alt="Pré-visualização da rifa">
+                <div class="image-actions">
+                    <button id="downloadImageBtn" class="secondary-button" style="display: none;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg> Baixar</button>
+                    <button id="shareImageBtn" class="primary-button" style="display: none;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.5 1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5zm-8.5 4a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm11 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg> Compartilhar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Libraries -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Variáveis Globais ---
+        let auth, db;
+        let currentUser = null;
+        let raffleData = {};
+        let unsubscribeRaffleListener = null;
+        let temporaryImage = null;
+
+        // --- Chave de Configuração do Firebase ---
+        // É seguro manter esta chave no código do cliente, conforme documentação do Firebase.
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
+            authDomain: "rifaacs-69cef.firebaseapp.com",
+            projectId: "rifaacs-69cef",
+            storageBucket: "rifaacs-69cef.appspot.com",
+            messagingSenderId: "568565118428",
+            appId: "1:568565118428:web:cc16277171966ef1208b19",
+            measurementId: "G-GDGLK7436E"
+        };
+        
+        // --- Mapeamento de Elementos da UI ---
+        const ui = {
+            loadingScreen: document.getElementById('loadingScreen'), setupScreen: document.getElementById('setupScreen'), authContainer: document.getElementById('authContainer'), configContainer: document.getElementById('configContainer'), mainApp: document.getElementById('mainApp'), loginBtn: document.getElementById('loginBtn'), comecarBtn: document.getElementById('comecarBtn'), vendedorInput: document.getElementById('vendedorInput'), nomeRifaInput: document.getElementById('nomeRifaInput'), valorRifaInput: document.getElementById('valorRifaInput'), premiosContainer: document.getElementById('premiosContainer'), pixInput: document.getElementById('pixInput'), initialIntervalsContainer: document.getElementById('initialIntervalsContainer'), addInitialIntervalBtn: document.getElementById('addInitialIntervalBtn'), vendedorHeader: document.getElementById('vendedorHeader'), headerRifaNome: document.getElementById('headerRifaNome'), settingsBtn: document.getElementById('settingsBtn'), exportBtn: document.getElementById('exportBtn'), exportImageBtn: document.getElementById('exportImageBtn'), logoutBtn: document.getElementById('logoutBtn'), numerosGrid: document.getElementById('numerosGrid'), vendidosCount: document.getElementById('vendidosCount'), disponiveisCount: document.getElementById('disponiveisCount'), totalCount: document.getElementById('totalCount'), autoSaveIndicator: document.getElementById('autoSaveIndicator'), numeroModal: document.getElementById('numeroModal'), settingsModal: document.getElementById('settingsModal'), vendedorEditInput: document.getElementById('vendedorEditInput'), nomeRifaEditInput: document.getElementById('nomeRifaEditInput'), valorRifaEditInput: document.getElementById('valorRifaEditInput'), premiosEditContainer: document.getElementById('premiosEditContainer'), pixEditInput: document.getElementById('pixEditInput'), editIntervalsContainer: document.getElementById('editIntervalsContainer'), addEditIntervalBtn: document.getElementById('addEditIntervalBtn'), saveSettingsBtn: document.getElementById('saveSettingsBtn'), importFileInput: document.getElementById('importFileInput'), importBtn: document.getElementById('importBtn'), imagePreviewModal: document.getElementById('imagePreviewModal'), imageLoadingSpinner: document.getElementById('imageLoadingSpinner'), generatedImagePreview: document.getElementById('generatedImagePreview'), downloadImageBtn: document.getElementById('downloadImageBtn'), shareImageBtn: document.getElementById('shareImageBtn'), imageUploadInput: document.getElementById('imageUploadInput'), imageUploadBtn: document.getElementById('imageUploadBtn'), imagePreview: document.getElementById('imagePreview'), removeImageBtn: document.getElementById('removeImageBtn'),
+        };
+
+        // --- Inicialização ---
+        document.addEventListener('DOMContentLoaded', () => {
+            try { 
+                const app = initializeApp(firebaseConfig); 
+                auth = getAuth(app); 
+                db = getFirestore(app); 
+                setupEventListeners(); 
+                monitorAuthState(); 
+                addIntervalInput(ui.initialIntervalsContainer); 
+            } catch (error) { 
+                console.error("Firebase Init Error:", error); 
+                ui.loadingScreen.innerHTML = "<p>Erro de Conexão. Tente recarregar a página.</p>"; 
+            }
+        });
+        
+        // --- CORRIGIDO: Configuração dos Eventos ---
+        function setupEventListeners() {
+            ui.loginBtn.addEventListener('click', signInWithGoogle);
+            ui.logoutBtn.addEventListener('click', fazerLogout);
+            ui.comecarBtn.addEventListener('click', criarNovaRifa);
+            ui.exportBtn.addEventListener('click', exportarDados);
+            ui.exportImageBtn.addEventListener('click', generateAndShowRaffleImage);
+            ui.settingsBtn.addEventListener('click', openSettingsModal);
+            ui.saveSettingsBtn.addEventListener('click', saveSettings);
+            ui.importBtn.addEventListener('click', () => ui.importFileInput.click());
+            ui.importFileInput.addEventListener('change', handleFileImport);
+            
+            // Listeners para os campos principais que afetam a validação inicial
+            [ui.vendedorInput, ui.nomeRifaInput, ui.pixInput].forEach(input => {
+                input.addEventListener('input', checkStartButtonState);
+            });
+
+            // Adiciona listeners dinamicamente para os campos de prêmios
+             ui.premiosContainer.addEventListener('input', (event) => {
+                if (event.target.classList.contains('premio-input')) {
+                    checkStartButtonState();
+                }
+            });
+
+            ui.addInitialIntervalBtn.addEventListener('click', () => addIntervalInput(ui.initialIntervalsContainer));
+            ui.addEditIntervalBtn.addEventListener('click', () => addIntervalInput(ui.editIntervalsContainer));
+            
+            // Eventos para fechar modais
+            [ui.numeroModal, ui.settingsModal, ui.imagePreviewModal].forEach(modal => {
+                modal.addEventListener('click', e => { if (e.target === modal) e.target.classList.add('hidden'); });
+            });
+            
+            // Eventos de upload de imagem
+            ui.imageUploadBtn.addEventListener('click', () => ui.imageUploadInput.click());
+            ui.imageUploadInput.addEventListener('change', handleImageUpload);
+            ui.removeImageBtn.addEventListener('click', () => {
+                ui.imagePreview.src = '';
+                temporaryImage = '';
+            });
+
+            // Chama a validação uma vez para definir o estado inicial correto do botão
+            checkStartButtonState();
+        }
+        
+        // --- CORRIGIDO: Validação para Habilitar o Botão "Começar" ---
+        function checkStartButtonState() {
+            const vendedor = ui.vendedorInput.value.trim();
+            const nomeRifa = ui.nomeRifaInput.value.trim();
+            const pix = ui.pixInput.value.trim();
+
+            const premios = Array.from(ui.premiosContainer.querySelectorAll('.premio-input'))
+                               .map(input => input.value.trim())
+                               .filter(p => p);
+
+            // getIntervalsFromUI retorna um objeto com 'error' se houver problema
+            const { error: intervalError } = getIntervalsFromUI(ui.initialIntervalsContainer);
+
+            // O botão só será habilitado se todos os campos estiverem preenchidos E se não houver erro nos intervalos.
+            const isFormValid = vendedor && nomeRifa && pix && premios.length > 0 && !intervalError;
+            
+            ui.comecarBtn.disabled = !isFormValid;
+        }
+
+        // --- Autenticação e Sincronização de Dados ---
+        function monitorAuthState() { 
+            onAuthStateChanged(auth, user => { 
+                if (user) { 
+                    currentUser = user; 
+                    checkRaffleData(); 
+                } else { 
+                    currentUser = null; 
+                    if (unsubscribeRaffleListener) unsubscribeRaffleListener(); 
+                    showScreen('setup'); 
+                    ui.authContainer.classList.remove('hidden'); 
+                    ui.configContainer.classList.add('hidden'); 
+                } 
+            }); 
+        }
+
+        async function signInWithGoogle() { 
+            try { 
+                await signInWithPopup(auth, new GoogleAuthProvider()); 
+            } catch (error) { 
+                console.error("Google Sign-In Error:", error); 
+                alert(`Falha no login: ${error.message}`); 
+            } 
+        }
+
+        async function fazerLogout() { 
+            if (confirm('Deseja realmente sair? Seus dados não salvos localmente serão perdidos.')) { 
+                try { 
+                    await signOut(auth); 
+                    location.reload(); 
+                } catch (error) { 
+                    console.error("Logout Error:", error); 
+                } 
+            } 
+        }
+        
+        function checkRaffleData() {
+            showScreen('loading'); 
+            const raffleDocRef = doc(db, 'rifas', currentUser.uid); 
+            if (unsubscribeRaffleListener) unsubscribeRaffleListener();
+            
+            unsubscribeRaffleListener = onSnapshot(raffleDocRef, (docSnap) => {
+                if (docSnap.exists()) { 
+                    raffleData = docSnap.data(); 
+                    renderApp(); 
+                    showScreen('main'); 
+                    showAutoSaveIndicator(); 
+                } else { 
+                    ui.vendedorInput.value = currentUser.displayName || ''; 
+                    checkStartButtonState(); // Valida após preencher o nome do usuário
+                    ui.authContainer.classList.add('hidden'); 
+                    ui.configContainer.classList.remove('hidden'); 
+                    showScreen('setup'); 
+                }
+            }, (error) => { 
+                console.error("Firestore Listener Error:", error); 
+                alert("Erro de permissão ao ler os dados. Verifique suas regras de segurança do Firestore."); 
+                showScreen('setup'); 
+            });
+        }
+
+        // --- Lógica Principal da Rifa ---
+        async function criarNovaRifa() {
+            const vendedor = ui.vendedorInput.value.trim(); 
+            const nomeRifa = ui.nomeRifaInput.value.trim(); 
+            const valorRifa = ui.valorRifaInput.value.trim(); 
+            const pix = ui.pixInput.value.trim(); 
+            const premios = Array.from(ui.premiosContainer.querySelectorAll('.premio-input')).map(input => input.value.trim()).filter(p => p);
+            
+            // A validação já foi feita pela checkStartButtonState, mas uma checagem final é boa prática
+            if (!vendedor || !nomeRifa || !pix || premios.length === 0) return alert("Preencha todos os campos obrigatórios.");
+            
+            const { intervals, error } = getIntervalsFromUI(ui.initialIntervalsContainer); 
+            if (error) return alert(error);
+            
+            const { numeros, error: numberError } = generateNumbersFromIntervals(intervals); 
+            if (numberError) return alert(numberError);
+            
+            const novaRifa = { vendedor, nomeRifa, valorRifa, pix, premios, intervalos, numeros, criadaEm: new Date().toISOString(), customImage: '' };
+            
+            ui.comecarBtn.disabled = true; 
+            ui.comecarBtn.innerHTML = '<div class="spinner-sm"></div> Salvando...';
+            try { 
+                await setDoc(doc(db, 'rifas', currentUser.uid), novaRifa); 
+            } catch(error) { 
+                console.error("Erro ao criar a rifa:", error); 
+                alert("Não foi possível salvar a nova rifa. Verifique sua conexão e tente novamente."); 
+            } finally { 
+                ui.comecarBtn.disabled = false; 
+                ui.comecarBtn.innerHTML = "Começar"; 
+            }
+        }
+        
+        async function updateRaffleData(newData, showIndicator = true) { 
+            try { 
+                await setDoc(doc(db, 'rifas', currentUser.uid), newData, { merge: true }); 
+                if (showIndicator) showAutoSaveIndicator(); 
+            } catch (error) { 
+                console.error("Erro ao atualizar a rifa:", error); 
+                alert("Falha na sincronização. Seus dados podem não ter sido salvos."); 
+            } 
+        }
+        
+        // --- CORRIGIDO: Manipulação de Intervalos de Números ---
+        function addIntervalInput(container, interval = { inicio: '', fim: '' }) {
+            const row = document.createElement('div');
+            row.className = 'row interval-row';
+            row.innerHTML = `<div class="half-input"><input type="number" class="input interval-start" placeholder="Início" value="${interval.inicio}"></div><div class="half-input"><input type="number" class="input interval-end" placeholder="Fim" value="${interval.fim}"></div><button class="remove-interval-btn" title="Remover Intervalo">&times;</button>`;
+            
+            // Adiciona o listener para o botão de remover
+            row.querySelector('.remove-interval-btn').addEventListener('click', () => {
+                if (container.querySelectorAll('.interval-row').length > 1) {
+                    row.remove();
+                    // Se estivermos na tela de setup, revalida o botão "Começar"
+                    if(container.id === 'initialIntervalsContainer') checkStartButtonState();
+                } else {
+                    alert('É necessário ter pelo menos um intervalo.');
+                }
+            });
+
+            // Adiciona listeners para os inputs de início e fim
+            row.querySelectorAll('.input').forEach(input => {
+                input.addEventListener('input', () => {
+                    // Se estivermos na tela de setup, revalida o botão "Começar"
+                    if(container.id === 'initialIntervalsContainer') checkStartButtonState();
+                });
+            });
+            
+            container.appendChild(row);
+            // Se estivermos na tela de setup, revalida o botão "Começar" ao adicionar
+            if(container.id === 'initialIntervalsContainer') checkStartButtonState();
+        }
+
+        function getIntervalsFromUI(container) { 
+            const intervals = []; 
+            const rows = container.querySelectorAll('.interval-row'); 
+            if (rows.length === 0) return { error: 'Adicione pelo menos um intervalo de números.' }; 
+            for (const row of rows) { 
+                const inicioInput = row.querySelector('.interval-start');
+                const fimInput = row.querySelector('.interval-end');
+                const inicio = parseInt(inicioInput.value); 
+                const fim = parseInt(fimInput.value); 
+                if (!inicioInput.value || !fimInput.value || isNaN(inicio) || isNaN(fim)) return { error: 'Preencha todos os campos de início e fim dos intervalos.' }; 
+                if (inicio > fim) return { error: `Intervalo inválido: o número de início (${inicio}) não pode ser maior que o fim (${fim}).` }; 
+                intervals.push({ inicio, fim }); 
+            } 
+            return { intervals }; 
+        }
+        
+        function generateNumbersFromIntervals(intervals) { 
+            const allNumbers = new Set(); 
+            for (const interval of intervals) { 
+                for (let i = interval.inicio; i <= interval.fim; i++) { 
+                    if(allNumbers.has(i)) return { error: `Número duplicado encontrado: ${i}. Verifique se seus intervalos não se sobrepõem.`}; 
+                    allNumbers.add(i); 
+                } 
+            } 
+            const numeros = Array.from(allNumbers).sort((a,b) => a-b).map(num => ({ numero: num, comprador: '', telefone: '', vendido: false })); 
+            if (numeros.length === 0) return { error: "Nenhum número foi gerado. Verifique seus intervalos." };
+            return { numeros }; 
+        }
+        
+        // --- Importação e Exportação ---
+        function handleFileImport(event) { 
+            const file = event.target.files[0]; 
+            if (!file) return; 
+            if (!confirm("Atenção! Isso irá ATUALIZAR os compradores e telefones da sua rifa atual com os dados do arquivo. Os números não encontrados no arquivo permanecerão como estão. Deseja continuar?")) { 
+                ui.importFileInput.value = ''; 
+                return; 
+            } 
+            const reader = new FileReader(); 
+            reader.onload = async (e) => { 
+                await parseReportAndUpdateData(e.target.result); 
+                ui.importFileInput.value = ''; 
+            }; 
+            reader.onerror = () => alert('Erro ao ler o arquivo.'); 
+            reader.readAsText(file); 
+        }
+
+        async function parseReportAndUpdateData(text) { 
+            const updatedRaffleData = JSON.parse(JSON.stringify(raffleData)); 
+            const numberMap = new Map(updatedRaffleData.numeros.map(n => [n.numero, n])); 
+            let importedCount = 0; 
+            let notFoundNumbers = []; 
+            const soldBlockRegex = /Número: (\d+)\s*\nComprador: (.*?)\s*\n(?:Telefone: (.*?))?/g; 
+            let match; 
+            while ((match = soldBlockRegex.exec(text)) !== null) { 
+                const numero = parseInt(match[1]); 
+                const comprador = match[2].trim() !== 'Não informado' ? match[2].trim() : ''; 
+                const telefone = match[3] ? match[3].trim() : ''; 
+                if (numberMap.has(numero)) { 
+                    const numberObj = numberMap.get(numero); 
+                    Object.assign(numberObj, { comprador, telefone, vendido: comprador !== '' }); 
+                    importedCount++; 
+                } else { 
+                    notFoundNumbers.push(numero); 
+                } 
+            } 
+            updatedRaffleData.numeros = Array.from(numberMap.values()); 
+            await updateRaffleData(updatedRaffleData); 
+            alert(`Importação Concluída! ${importedCount} números foram atualizados.` + (notFoundNumbers.length > 0 ? `\n\nOs seguintes números do relatório não foram encontrados na sua rifa atual: ${notFoundNumbers.join(', ')}` : '')); 
+            window.closeSettingsModal(); 
+        }
+
+        function exportarDados() { 
+            if (!raffleData || !raffleData.numeros) return alert('Não há dados para exportar.'); 
+            const vendidos = raffleData.numeros.filter(n => n.vendido).sort((a, b) => a.numero - b.numero); 
+            let conteudo = `RELATÓRIO DA RIFA "${raffleData.nomeRifa || ''}"\n`; 
+            conteudo += `Vendedor: ${raffleData.vendedor}\n`; 
+            conteudo += `Data da Exportação: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}\n\n`; 
+            conteudo += `==== NÚMEROS VENDIDOS ====\n\n`; 
+            vendidos.forEach(n => { 
+                conteudo += `Número: ${n.numero}\nComprador: ${n.comprador || 'Não informado'}\n`; 
+                if(n.telefone) conteudo += `Telefone: ${n.telefone}\n`; 
+                conteudo += `------------------------\n`; 
+            }); 
+            conteudo += `\nTotal de números vendidos: ${vendidos.length}\n`;
+            conteudo += `Total de números disponíveis: ${raffleData.numeros.length - vendidos.length}`; 
+            
+            if (navigator.share) { 
+                navigator.share({ title: `Relatório da Rifa - ${raffleData.vendedor}`, text: conteudo }).catch(console.error); 
+            } else { 
+                navigator.clipboard.writeText(conteudo).then(() => alert('Relatório copiado para a área de transferência!')); 
+            } 
+        }
+
+        // --- Renderização da UI ---
+        function renderApp() { 
+            ui.headerRifaNome.textContent = raffleData.nomeRifa || 'Rifa'; 
+            ui.vendedorHeader.textContent = `Vendedor: ${raffleData.vendedor}`; 
+            updateGrid(); 
+            updateStats(); 
+        }
+        
+        function updateGrid() { 
+            ui.numerosGrid.innerHTML = ''; 
+            if (!raffleData.numeros || raffleData.numeros.length === 0) return; 
+            raffleData.numeros.sort((a, b) => a.numero - b.numero); 
+            const numerosPorLinha = window.innerWidth < 480 ? 5 : 6; 
+            const fragment = document.createDocumentFragment();
+            
+            let row = document.createElement('div');
+            row.className = 'grid-row';
+
+            for (let i = 0; i < raffleData.numeros.length; i++) {
+                if (i > 0 && i % numerosPorLinha === 0) {
+                    fragment.appendChild(row);
+                    row = document.createElement('div');
+                    row.className = 'grid-row';
+                }
+                const numeroData = raffleData.numeros[i]; 
+                const button = document.createElement('button'); 
+                button.className = `numero-button ${numeroData.vendido ? 'numero-vendido' : 'numero-disponivel'}`; 
+                button.textContent = numeroData.numero; 
+                button.onclick = () => openNumberModal(numeroData.numero); 
+                row.appendChild(button); 
+            }
+            fragment.appendChild(row); // Append the last row
+            ui.numerosGrid.appendChild(fragment); 
+        }
+
+        function updateStats() { 
+            if (!raffleData.numeros) return; 
+            const vendidos = raffleData.numeros.filter(n => n.vendido).length; 
+            const total = raffleData.numeros.length; 
+            ui.vendidosCount.textContent = vendidos; 
+            ui.disponiveisCount.textContent = total - vendidos; 
+            ui.totalCount.textContent = total; 
+        }
+
+        function showScreen(screenName) { 
+            ui.loadingScreen.classList.add('hidden'); 
+            ui.setupScreen.classList.add('hidden'); 
+            ui.mainApp.classList.add('hidden'); 
+            const screenMap = { loading: ui.loadingScreen, setup: ui.setupScreen, main: ui.mainApp }; 
+            if(screenMap[screenName]) screenMap[screenName].classList.remove('hidden'); 
+        }
+        
+        function showAutoSaveIndicator() { 
+            ui.autoSaveIndicator.classList.add('show'); 
+            setTimeout(() => ui.autoSaveIndicator.classList.remove('show'), 2000); 
+        }
+
+        // --- Modais ---
+        function openNumberModal(numero) { 
+            const numeroData = raffleData.numeros.find(n => n.numero === numero); 
+            ui.numeroModal.innerHTML = `<div class="modal-container"><div class="modal-header"><h2 class="modal-title">Número ${numero}</h2><button class="close-button" onclick="window.closeNumberModal()">&times;</button></div><div class="modal-content"><label class="label">Comprador</label><input type="text" id="compradorInput" class="input" placeholder="Nome do comprador" value="${numeroData.comprador || ''}"><label class="label">Telefone</label><input type="tel" id="telefoneInput" class="input" placeholder="(00) 00000-0000" value="${numeroData.telefone || ''}"><button id="saveNumberBtn" class="primary-button">💾 Salvar</button><button id="clearNumberBtn" class="secondary-button">Limpar Dados</button></div></div>`; 
+            ui.numeroModal.classList.remove('hidden'); 
+            document.getElementById('saveNumberBtn').addEventListener('click', () => saveNumberData(numero)); 
+            document.getElementById('clearNumberBtn').addEventListener('click', () => clearNumberData(numero));
+        }
+
+        function saveNumberData(numero) { 
+            const comprador = document.getElementById('compradorInput').value.trim(); 
+            const telefone = document.getElementById('telefoneInput').value.trim(); 
+            const numeroIndex = raffleData.numeros.findIndex(n => n.numero === numero); 
+            if (numeroIndex !== -1) { 
+                const updatedRaffleData = JSON.parse(JSON.stringify(raffleData)); 
+                updatedRaffleData.numeros[numeroIndex] = { ...updatedRaffleData.numeros[numeroIndex], comprador, telefone, vendido: comprador !== '' }; 
+                updateRaffleData(updatedRaffleData); 
+            } 
+            window.closeNumberModal(); 
+        }
+
+        function clearNumberData(numero) {
+            const numeroIndex = raffleData.numeros.findIndex(n => n.numero === numero); 
+            if (numeroIndex !== -1) { 
+                const updatedRaffleData = JSON.parse(JSON.stringify(raffleData)); 
+                updatedRaffleData.numeros[numeroIndex] = { ...updatedRaffleData.numeros[numeroIndex], comprador: '', telefone: '', vendido: false }; 
+                updateRaffleData(updatedRaffleData); 
+            } 
+            window.closeNumberModal();
+        }
+
+        window.closeNumberModal = () => ui.numeroModal.classList.add('hidden');
+
+        function openSettingsModal() {
+            ui.nomeRifaEditInput.value = raffleData.nomeRifa || ''; 
+            ui.valorRifaEditInput.value = raffleData.valorRifa || ''; 
+            ui.pixEditInput.value = raffleData.pix || ''; 
+            ui.vendedorEditInput.value = raffleData.vendedor || '';
+            
+            ui.imagePreview.src = raffleData.customImage || ''; 
+            temporaryImage = raffleData.customImage || '';
+            
+            ui.premiosEditContainer.innerHTML = ''; 
+            const premios = raffleData.premios || []; 
+            for (let i = 0; i < 3; i++) { 
+                const input = document.createElement('input'); 
+                input.type = 'text'; 
+                input.className = 'premio-input'; 
+                input.placeholder = `${i + 1}º Prêmio`; 
+                input.value = premios[i] || ''; 
+                ui.premiosEditContainer.appendChild(input); 
+            }
+            
+            ui.editIntervalsContainer.innerHTML = ''; 
+            if (raffleData.intervalos) {
+                raffleData.intervalos.forEach(interval => addIntervalInput(ui.editIntervalsContainer, interval));
+            }
+
+            ui.settingsModal.classList.remove('hidden');
+        }
+
+        async function saveSettings() {
+            const novoVendedor = ui.vendedorEditInput.value.trim(); 
+            const novoNomeRifa = ui.nomeRifaEditInput.value.trim(); 
+            const novoValorRifa = ui.valorRifaEditInput.value.trim(); 
+            const novoPix = ui.pixEditInput.value.trim();
+            const novosPremios = Array.from(ui.premiosEditContainer.querySelectorAll('.premio-input')).map(input => input.value.trim()).filter(p => p);
+            
+            if(!novoVendedor || !novoNomeRifa || !novoPix || novosPremios.length === 0) return alert("Preencha todos os campos obrigatórios.");
+            
+            const { intervals: novosIntervalos, error } = getIntervalsFromUI(ui.editIntervalsContainer); 
+            if (error) return alert(error);
+            
+            const { numeros: novosNumeros, error: numberError } = generateNumbersFromIntervals(novosIntervalos); 
+            if(numberError) return alert(numberError);
+            
+            const soldNumbersMap = new Map(raffleData.numeros.filter(n => n.vendido).map(n => [n.numero, n]));
+            novosNumeros.forEach(n => { 
+                if (soldNumbersMap.has(n.numero)) Object.assign(n, soldNumbersMap.get(n.numero)); 
+            });
+            
+            const rifaAtualizada = { ...raffleData, vendedor: novoVendedor, nomeRifa: novoNomeRifa, valorRifa: novoValorRifa, pix: novoPix, premios: novosPremios, intervalos: novosIntervalos, numeros: novosNumeros, customImage: temporaryImage };
+            
+            ui.saveSettingsBtn.disabled = true; 
+            ui.saveSettingsBtn.innerHTML = '<div class="spinner-sm"></div> Salvando...';
+            await updateRaffleData(rifaAtualizada, false);
+            ui.saveSettingsBtn.disabled = false; 
+            ui.saveSettingsBtn.textContent = "Salvar Alterações";
+            
+            window.closeSettingsModal(); 
+            showAutoSaveIndicator();
+        }
+        window.closeSettingsModal = () => ui.settingsModal.classList.add('hidden');
+
+        // --- Geração e Manipulação de Imagem ---
+        function handleImageUpload(event) {
+            const file = event.target.files[0]; 
+            if (!file) return;
+            if (file.size > 1024 * 1024) { 
+                alert("Imagem muito grande! Por favor, escolha uma imagem com menos de 1MB."); 
+                return; 
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => { 
+                resizeImage(e.target.result, 400, 400, (resizedBase64) => { 
+                    ui.imagePreview.src = resizedBase64; 
+                    temporaryImage = resizedBase64; 
+                }); 
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resizeImage(base64Str, maxWidth, maxHeight, callback) {
+            const img = new Image(); 
+            img.src = base64Str;
+            img.onload = () => {
+                const canvas = document.createElement('canvas'); 
+                let width = img.width; 
+                let height = img.height;
+                if (width > height) { 
+                    if (width > maxWidth) { 
+                        height *= maxWidth / width; 
+                        width = maxWidth; 
+                    } 
+                } else { 
+                    if (height > maxHeight) { 
+                        width *= maxHeight / height; 
+                        height = maxHeight; 
+                    } 
+                }
+                canvas.width = width; 
+                canvas.height = height; 
+                const ctx = canvas.getContext('2d'); 
+                ctx.drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/jpeg', 0.8));
+            };
+        }
+        
+        window.closeImagePreviewModal = () => ui.imagePreviewModal.classList.add('hidden');
+        async function generateAndShowRaffleImage() {
+            if (!raffleData) return; 
+            ui.imagePreviewModal.classList.remove('hidden'); 
+            ui.imageLoadingSpinner.classList.remove('hidden'); 
+            ui.generatedImagePreview.classList.add('hidden'); 
+            ui.downloadImageBtn.style.display = 'none'; 
+            ui.shareImageBtn.style.display = 'none';
+            
+            // Pequeno timeout para permitir que a UI atualize antes do processamento pesado do canvas
+            setTimeout(async () => {
+                try {
+                    const imageDataUrl = await drawRaffleOnCanvas();
+                    ui.generatedImagePreview.src = imageDataUrl; 
+                    ui.generatedImagePreview.classList.remove('hidden'); 
+                    ui.downloadImageBtn.style.display = 'flex'; 
+                    ui.shareImageBtn.style.display = 'flex';
+                    
+                    ui.downloadImageBtn.onclick = () => { 
+                        const link = document.createElement('a'); 
+                        link.href = imageDataUrl; 
+                        link.download = `rifa-${raffleData.vendedor.toLowerCase().replace(/\s/g, '-')}.png`; 
+                        link.click(); 
+                    };
+                    ui.shareImageBtn.onclick = () => shareImage(imageDataUrl);
+                } catch (error) { 
+                    console.error("Erro ao gerar imagem:", error); 
+                    alert("Ocorreu um erro ao gerar a imagem."); 
+                    window.closeImagePreviewModal(); 
+                } finally { 
+                    ui.imageLoadingSpinner.classList.add('hidden'); 
+                }
+            }, 50);
+        }
+
+        function drawRaffleOnCanvas() {
+            return new Promise((resolve, reject) => {
+                const drawCanvasContent = (userImage = null) => {
+                    try {
+                        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                        const W = 1080; const H = 1350; const PADDING = 60;
+                        canvas.width = W; canvas.height = H;
+                        
+                        // Fundo da imagem
+                        ctx.fillStyle = '#0C2D48'; // Um azul escuro e elegante
+                        ctx.fillRect(0, 0, W, H);
+                        
+                        let gridStartY = 0;
+
+                        if (userImage) {
+                            // --- LAYOUT COM IMAGEM (DUAS COLUNAS) ---
+                            const maxLogoWidth = W * 0.45;
+                            const aspectRatio = userImage.width / userImage.height;
+                            let logoWidth = maxLogoWidth;
+                            let logoHeight = logoWidth / aspectRatio;
+                            const maxLogoHeight = 450;
+                            if (logoHeight > maxLogoHeight) { logoHeight = maxLogoHeight; logoWidth = logoHeight * aspectRatio; }
+                            const logoX = PADDING; const logoY = PADDING;
+                            ctx.drawImage(userImage, logoX, logoY, logoWidth, logoHeight);
+
+                            // Coluna da Direita: Todos os textos
+                            let textX = logoX + logoWidth + 40;
+                            let textY = logoY;
+                            ctx.textAlign = 'left';
+
+                            const wrapText = (context, text, x, y, maxWidth, lineHeight) => {
+                                let words = text.split(' '); let line = '';
+                                for(let n = 0; n < words.length; n++) {
+                                    let testLine = line + words[n] + ' ';
+                                    if (context.measureText(testLine).width > maxWidth && n > 0) {
+                                        context.fillText(line, x, y); line = words[n] + ' '; y += lineHeight;
+                                    } else { line = testLine; }
+                                }
+                                context.fillText(line.trim(), x, y);
+                                return y;
+                            };
+
+                            ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 52px -apple-system, sans-serif';
+                            textY = wrapText(ctx, raffleData.nomeRifa || "Ação entre Amigos", textX, textY + 50, W - textX - PADDING, 60);
+                            
+                            textY += 50; ctx.font = '34px -apple-system, sans-serif'; ctx.fillStyle = '#B0C4DE';
+                            ctx.fillText(`Por: ${raffleData.vendedor}`, textX, textY);
+
+                            textY += 70; ctx.font = 'bold 34px -apple-system, sans-serif'; ctx.fillStyle = '#FFFFFF';
+                            ctx.fillText("🏆 Prêmios", textX, textY);
+                            ctx.font = '30px -apple-system, sans-serif'; ctx.fillStyle = '#E0E0E0';
+                            (raffleData.premios || []).forEach((premio) => { textY += 40; ctx.fillText(`• ${premio}`, textX, textY); });
+
+                            textY += 70; ctx.font = 'bold 36px -apple-system, sans-serif'; ctx.fillStyle = '#2ECC71';
+                            ctx.fillText(`Valor: ${raffleData.valorRifa || 'R$ 10,00'}`, textX, textY);
+                            textY += 50; ctx.font = '30px -apple-system, sans-serif'; ctx.fillStyle = '#FFFFFF';
+                            ctx.fillText(`PIX:`, textX, textY);
+                            ctx.font = 'bold 32px -apple-system, sans-serif'; ctx.fillStyle = '#FFD700'; textY += 40;
+                            ctx.fillText(`${raffleData.pix || 'Não informado'}`, textX, textY);
+
+                            gridStartY = Math.max(logoY + logoHeight, textY) + PADDING;
+
+                        } else {
+                            // --- LAYOUT SEM IMAGEM (CENTRALIZADO) ---
+                            let currentY = PADDING; ctx.textAlign = 'center';
+                            ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 70px -apple-system, sans-serif';
+                            ctx.fillText(raffleData.nomeRifa || "Ação entre Amigos", W / 2, currentY += 60);
+                            ctx.font = '36px -apple-system, sans-serif'; ctx.fillStyle = '#B0C4DE';
+                            ctx.fillText(`Por: ${raffleData.vendedor}`, W / 2, currentY += 60);
+                            
+                            currentY += 80; ctx.font = 'bold 36px -apple-system, sans-serif'; ctx.fillStyle = '#FFFFFF';
+                            ctx.fillText("🏆 Prêmios 🏆", W / 2, currentY);
+                            ctx.font = '32px -apple-system, sans-serif'; ctx.fillStyle = '#E0E0E0';
+                            (raffleData.premios || []).forEach((premio, index) => { ctx.fillText(`${index + 1}º - ${premio}`, W / 2, currentY += 45); });
+                            
+                            currentY += 70; ctx.font = 'bold 40px -apple-system, sans-serif'; ctx.fillStyle = '#2ECC71';
+                            ctx.fillText(`Valor: ${raffleData.valorRifa || 'R$ 10,00'}`, W / 2, currentY);
+                            currentY += 60; ctx.font = '32px -apple-system, sans-serif'; ctx.fillStyle = '#E0E0E0';
+                            ctx.fillText(`PIX para pagamento:`, W/2, currentY);
+                            ctx.font = 'bold 36px -apple-system, sans-serif'; ctx.fillStyle = '#FFD700';
+                            ctx.fillText(`${raffleData.pix || 'Chave não informada'}`, W/2, currentY += 45);
+
+                            gridStartY = currentY + PADDING;
+                        }
+
+                        // --- DESENHO DO GRID DE NÚMEROS ---
+                        const numbers = raffleData.numeros.slice().sort((a,b) => a.numero - b.numero);
+                        const gridArea = { x: PADDING, y: gridStartY, width: W - 2 * PADDING, height: H - gridStartY - PADDING };
+                        const idealCols = 10; const idealRows = Math.ceil(numbers.length / idealCols);
+                        const cellW = gridArea.width / idealCols; const cellH = gridArea.height / idealRows; const boxSize = Math.min(cellW, cellH) * 0.85; const hMargin = (cellW - boxSize) / 2; const vMargin = (cellH - boxSize) / 2;
+                        
+                        numbers.forEach((num, index) => {
+                            const col = index % idealCols; const row = Math.floor(index / idealCols); if (row >= idealRows) return;
+                            const x = gridArea.x + col * cellW + hMargin; const y = gridArea.y + row * cellH + vMargin;
+                            
+                            ctx.fillStyle = num.vendido ? '#2ECC71' : '#1B4F72'; 
+                            ctx.strokeStyle = num.vendido ? '#27AE60' : '#5DADE2'; 
+                            ctx.lineWidth = 3;
+
+                            ctx.beginPath(); ctx.moveTo(x + 12, y); ctx.lineTo(x + boxSize - 12, y); ctx.quadraticCurveTo(x + boxSize, y, x + boxSize, y + 12); ctx.lineTo(x + boxSize, y + boxSize - 12); ctx.quadraticCurveTo(x + boxSize, y + boxSize, x + boxSize - 12, y + boxSize); ctx.lineTo(x + 12, y + boxSize); ctx.quadraticCurveTo(x, y + boxSize, x, y + boxSize - 12); ctx.lineTo(x, y + 12); ctx.quadraticCurveTo(x, y, x + 12, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+                            
+                            ctx.fillStyle = '#FFFFFF';
+                            ctx.font = `bold ${boxSize * 0.4}px -apple-system, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(num.numero, x + boxSize / 2, y + boxSize / 2 + 2);
+                        });
+                        
+                        ctx.fillStyle = '#A9A9A9'; ctx.font = '28px -apple-system, sans-serif'; ctx.textAlign = 'center';
+                        const now = new Date(); const timestamp = `Rifa Atualizada em ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}`;
+                        ctx.fillText(timestamp, W / 2, H - PADDING / 2);
+                        
+                        resolve(canvas.toDataURL('image/png', 1.0));
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+
+                if (raffleData.customImage) {
+                    const userImg = new Image();
+                    userImg.onload = () => drawCanvasContent(userImg);
+                    userImg.onerror = () => { console.warn("Erro ao carregar imagem, desenhando sem ela."); drawCanvasContent(null); };
+                    userImg.src = raffleData.customImage;
+                } else {
+                    drawCanvasContent(null);
+                }
+            });
+        }
+        
+        async function shareImage(imageDataUrl) {
+            try {
+                const response = await fetch(imageDataUrl); const blob = await response.blob(); const file = new File([blob], `rifa-${raffleData.vendedor}.png`, { type: blob.type });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: `Rifa: ${raffleData.nomeRifa}`, text: `Escolha seus números da sorte para a rifa "${raffleData.nomeRifa}"!` });
+                } else { 
+                    alert("Seu navegador não suporta o compartilhamento direto de arquivos. Use o botão 'Baixar' e envie a imagem manualmente."); 
+                }
+            } catch (error) { 
+                console.error('Erro ao compartilhar:', error); 
+                alert("Ocorreu um erro ao tentar compartilhar a imagem. Por favor, tente baixar e enviar manualmente."); 
+            }
+        }
+    </script>
+</body>
+</html>
