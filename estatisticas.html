@@ -28,6 +28,22 @@
             margin: 0 auto;
             padding: 24px;
         }
+        
+        .card {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .auth-container {
+             display: flex;
+             flex-direction: column;
+             justify-content: center;
+             align-items: center;
+             min-height: 100vh;
+        }
 
         .header {
             display: flex;
@@ -35,6 +51,7 @@
             align-items: center;
             margin-bottom: 24px;
             flex-wrap: wrap;
+            gap: 16px;
         }
         .header h1 { font-size: 2.25rem; }
 
@@ -44,6 +61,8 @@
             text-decoration: none; display: inline-flex; align-items: center;
             gap: 8px; background-color: var(--primary-color); color: white;
         }
+        
+        .danger-button { background-color: var(--danger-color); color: white; }
 
         .stats-grid {
             display: grid;
@@ -93,7 +112,7 @@
         }
 
         .seller-card .name { font-size: 1.5rem; font-weight: 600; }
-        .seller-card .email { font-size: 1rem; color: var(--text-gray); }
+        .seller-card .email { font-size: 1rem; color: var(--text-gray); word-break: break-all; }
         .seller-card .seller-progress { font-size: 1rem; font-weight: 500; margin-top: 12px;}
         .seller-card .progress-bar { background-color: var(--medium-gray); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 8px; }
         .seller-card .progress-bar-fill { background-color: var(--info-color); height: 100%; width: 0%; border-radius: 4px; transition: width 0.5s ease-out;}
@@ -102,12 +121,30 @@
         .seller-card .detail-item .label { font-size: 1rem; color: var(--text-gray); }
         .seller-card .detail-item .value { font-size: 1.25rem; font-weight: 600; }
         
-        #loading { text-align: center; font-size: 1.25rem; color: var(--text-gray); padding: 48px;}
+        #loadingMessage { text-align: center; font-size: 1.25rem; color: var(--text-gray); padding: 48px;}
+        .hidden { display: none !important; }
 
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Container de Login e Acesso Negado -->
+    <div id="authContainer" class="container hidden">
+        <div class="card auth-container">
+            <h1>Estatísticas da Campanha</h1>
+            <p>Faça login como administrador para ver esta página.</p>
+            <button id="loginBtn" class="button">Entrar com Google</button>
+        </div>
+    </div>
+    <div id="accessDeniedContainer" class="container hidden">
+        <div class="card auth-container">
+            <h1>Acesso Negado</h1>
+            <p>Apenas o administrador pode aceder a esta página.</p>
+            <button id="logoutDeniedBtn" class="button danger-button">Sair</button>
+        </div>
+    </div>
+
+    <!-- Container Principal de Estatísticas -->
+    <div id="statsContainer" class="container hidden">
         <div class="header">
             <h1>Estatísticas da Campanha</h1>
             <a href="index.html" class="button">← Voltar ao Painel</a>
@@ -123,13 +160,15 @@
                 <!-- Os cartões de vendedores serão inseridos aqui -->
             </div>
         </div>
-
-        <div id="loading">A carregar dados...</div>
+        <div id="loadingMessage">A carregar dados...</div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const ADMIN_EMAIL = 'cloudp4@gmail.com';
 
         const firebaseConfig = {
             apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
@@ -141,26 +180,58 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
 
         const ui = {
+            authContainer: document.getElementById('authContainer'),
+            accessDeniedContainer: document.getElementById('accessDeniedContainer'),
+            statsContainer: document.getElementById('statsContainer'),
+            loginBtn: document.getElementById('loginBtn'),
+            logoutDeniedBtn: document.getElementById('logoutDeniedBtn'),
             generalStats: document.getElementById('generalStats'),
             sellerList: document.getElementById('sellerList'),
-            loading: document.getElementById('loading'),
+            loadingMessage: document.getElementById('loadingMessage'),
         };
+
+        // Lógica de Autenticação
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                if (user.email?.toLowerCase() === ADMIN_EMAIL) {
+                    ui.authContainer.classList.add('hidden');
+                    ui.accessDeniedContainer.classList.add('hidden');
+                    ui.statsContainer.classList.remove('hidden');
+                    loadAndProcessData(); // Carrega os dados apenas se o admin estiver logado
+                } else {
+                    ui.authContainer.classList.add('hidden');
+                    ui.statsContainer.classList.add('hidden');
+                    ui.accessDeniedContainer.classList.remove('hidden');
+                }
+            } else {
+                ui.accessDeniedContainer.classList.add('hidden');
+                ui.statsContainer.classList.add('hidden');
+                ui.authContainer.classList.remove('hidden');
+            }
+        });
+
+        const handleSignIn = () => signInWithPopup(auth, new GoogleAuthProvider());
+        const handleSignOut = () => signOut(auth);
+
+        ui.loginBtn.addEventListener('click', handleSignIn);
+        ui.logoutDeniedBtn.addEventListener('click', handleSignOut);
+
 
         async function loadAndProcessData() {
             try {
-                ui.loading.style.display = 'block';
+                ui.loadingMessage.style.display = 'block';
                 const querySnapshot = await getDocs(collection(db, "rifas"));
                 const allRaffles = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
                 if (allRaffles.length === 0) {
-                    ui.loading.textContent = "Nenhum dado de rifa encontrado.";
+                    ui.loadingMessage.textContent = "Nenhum dado de rifa encontrado.";
                     return;
                 }
                 
-                // Processamento dos dados
                 let grandTotalSold = 0;
                 let grandTotalNumbers = 0;
                 const raffleValue = parseFloat(String(allRaffles[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
@@ -183,7 +254,7 @@
                         revenue,
                         progress,
                     };
-                }).sort((a,b) => b.revenue - a.revenue); // Ordena por quem arrecadou mais
+                }).sort((a,b) => b.revenue - a.revenue);
 
                 const grandTotalRevenue = grandTotalSold * raffleValue;
                 const grandTotalProgress = grandTotalNumbers > 0 ? (grandTotalSold / grandTotalNumbers) * 100 : 0;
@@ -191,11 +262,11 @@
                 renderGeneralStats(grandTotalRevenue, grandTotalSold, grandTotalProgress, allRaffles.length);
                 renderSellerStats(sellerPerformance);
 
-                ui.loading.style.display = 'none';
+                ui.loadingMessage.style.display = 'none';
 
             } catch (error) {
                 console.error("Erro ao carregar e processar os dados:", error);
-                ui.loading.textContent = "Ocorreu um erro ao carregar os dados.";
+                ui.loadingMessage.textContent = "Ocorreu um erro ao carregar os dados. Verifique a consola para mais detalhes.";
             }
         }
         
@@ -224,7 +295,7 @@
         }
         
         function renderSellerStats(sellers) {
-            ui.sellerList.innerHTML = ''; // Limpa a lista
+            ui.sellerList.innerHTML = '';
             sellers.forEach(seller => {
                 const sellerCard = document.createElement('div');
                 sellerCard.className = 'seller-card';
@@ -251,9 +322,6 @@
                 ui.sellerList.appendChild(sellerCard);
             });
         }
-
-        // Iniciar o processo ao carregar a página
-        document.addEventListener('DOMContentLoaded', loadAndProcessData);
     </script>
 </body>
 </html>
