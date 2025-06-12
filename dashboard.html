@@ -6,7 +6,7 @@
     <title>Painel do Administrador - RifaACS</title>
     <!-- Biblioteca de Gráficos (Chart.js) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Biblioteca para PDF (jsPDF) -->
+    <!-- Biblioteca para PDF (jsPDF) e AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.autotable.min.js"></script>
     <style>
@@ -232,8 +232,10 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // The admin's email for access control.
         const ADMIN_EMAIL = 'cloudp4@gmail.com';
 
+        // Firebase configuration for your project.
         const firebaseConfig = {
             apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
             authDomain: "rifaacs-69cef.firebaseapp.com",
@@ -243,10 +245,12 @@
             appId: "1:568565118428:web:cc16277171966ef1208b19",
         };
         
+        // Initialize Firebase services.
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // UI element references.
         const ui = {
             authContainer: document.getElementById('authContainer'),
             accessDeniedContainer: document.getElementById('accessDeniedContainer'),
@@ -263,15 +267,18 @@
             attentionList: document.getElementById('attentionList'),
             exportReportBtn: document.getElementById('exportReportBtn'),
         };
-        let topSellersChart = null;
-        let allRafflesData = []; // Cache dos dados
+        
+        let topSellersChart = null; // To hold the chart instance.
+        let allRafflesData = []; // Cache for raffle data to avoid re-fetching.
 
+        // Function to switch between UI screens.
         function showScreen(screenName) {
             const screens = ['authContainer', 'accessDeniedContainer', 'dashboardPanel'];
             screens.forEach(id => document.getElementById(id)?.classList.add('hidden'));
             document.getElementById(screenName)?.classList.remove('hidden');
         }
 
+        // Listen for authentication state changes.
         onAuthStateChanged(auth, user => {
             if (user) {
                 if (user.email?.toLowerCase() === ADMIN_EMAIL) {
@@ -288,11 +295,13 @@
 
         const handleSignOut = () => signOut(auth);
 
+        // Event listeners for buttons.
         ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
         ui.logoutDeniedBtn.addEventListener('click', handleSignOut);
         ui.logoutBtn.addEventListener('click', handleSignOut);
         ui.exportReportBtn.addEventListener('click', generateGeneralReportPDF);
 
+        // Fetches all raffle data from Firestore.
         async function loadDashboardData() {
             try {
                 const querySnapshot = await getDocs(collection(db, "rifas"));
@@ -307,6 +316,7 @@
             }
         }
 
+        // Processes the fetched data and updates the UI metrics.
         function processAndRenderMetrics(raffles) {
             if (!raffles || raffles.length === 0) return;
 
@@ -336,6 +346,7 @@
             renderAttentionList(lowPerformers);
         }
 
+        // Renders the Top 5 Sellers bar chart.
         function renderTopSellersChart(topSellers) {
             const ctx = ui.topSellersChartCanvas.getContext('2d');
             if (topSellersChart) topSellersChart.destroy();
@@ -362,6 +373,7 @@
             });
         }
 
+        // Renders the list of sellers needing attention.
         function renderAttentionList(lowPerformers) {
             ui.attentionList.innerHTML = '';
             if (lowPerformers.length === 0) {
@@ -375,6 +387,7 @@
             });
         }
         
+        // Generates and downloads a general PDF report.
         function generateGeneralReportPDF() {
             const btn = ui.exportReportBtn;
             if (btn.disabled) return; 
@@ -388,11 +401,11 @@
             btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
             
             try {
-                // CORREÇÃO: Acessa o construtor do objeto jspdf na window
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                // FIX: Instantiate jsPDF directly from the window.jspdf object.
+                // This ensures we get the constructor that the AutoTable plugin has attached to.
+                const doc = new window.jspdf.jsPDF();
                 
-                // Capa do Relatório
+                // Report Cover
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
                 doc.text("Relatório Geral da Rifa", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
@@ -401,13 +414,13 @@
                 doc.setFont('helvetica', 'normal');
                 doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
 
-                // Resumo
+                // Summary Page
                 doc.addPage();
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
                 doc.text("Resumo Geral", 14, 20);
                 
-                // Recalcula as métricas para garantir que estão corretas
+                // Recalculate metrics to ensure they are current.
                 let totalSold = 0;
                 let totalNumbers = 0;
                 const raffleValue = parseFloat(String(allRafflesData[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
@@ -418,6 +431,7 @@
                 const totalRevenue = totalSold * raffleValue;
                 const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
 
+                // Use autoTable for the summary.
                 doc.autoTable({
                     startY: 30,
                     head: [['Métrica', 'Valor']],
@@ -431,7 +445,7 @@
                     theme: 'grid'
                 });
 
-                // Detalhes por Vendedor
+                // Details per seller
                 allRafflesData.forEach(raffle => {
                     const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
                     if (soldNumbers.length > 0) {
@@ -468,3 +482,4 @@
     </script>
 </body>
 </html>
+
