@@ -6,9 +6,8 @@
     <title>Painel do Administrador - RifaACS</title>
     <!-- Biblioteca de Gráficos (Chart.js) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Biblioteca para PDF (jsPDF) e AutoTable -->
+    <!-- Bibliotecas para PDF (jsPDF & jspdf-autotable) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- FIX: Updated jspdf-autotable to a newer, more compatible version -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.autotable.min.js"></script>
     <style>
         :root {
@@ -133,7 +132,7 @@
         .nav-card h3 { font-size: 18px; margin: 16px 0 8px 0; }
         .nav-card p { font-size: 14px; color: var(--text-gray); line-height: 1.5; margin: 0; }
 
-        .chart-container { position: relative; height: 400px; /* Altura fixa para o container do gráfico */ }
+        .chart-container { position: relative; height: 400px; }
 
         .attention-list { list-style-type: none; padding: 0; margin: 0; }
         .attention-list li { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--light-gray); }
@@ -220,7 +219,7 @@
                     <div class="content-section">
                         <h3>⚠️ Pontos de Atenção</h3>
                         <ul id="attentionList" class="attention-list">
-                            <!-- Lista será preenchida dinamicamente -->
+                            <!-- A lista será preenchida dinamicamente -->
                         </ul>
                     </div>
                 </div>
@@ -233,10 +232,8 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // The admin's email for access control.
         const ADMIN_EMAIL = 'cloudp4@gmail.com';
 
-        // Firebase configuration for your project.
         const firebaseConfig = {
             apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
             authDomain: "rifaacs-69cef.firebaseapp.com",
@@ -246,12 +243,10 @@
             appId: "1:568565118428:web:cc16277171966ef1208b19",
         };
         
-        // Initialize Firebase services.
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // UI element references.
         const ui = {
             authContainer: document.getElementById('authContainer'),
             accessDeniedContainer: document.getElementById('accessDeniedContainer'),
@@ -269,17 +264,16 @@
             exportReportBtn: document.getElementById('exportReportBtn'),
         };
         
-        let topSellersChart = null; // To hold the chart instance.
-        let allRafflesData = []; // Cache for raffle data to avoid re-fetching.
+        let topSellersChart = null;
+        let allRafflesData = []; 
 
-        // Function to switch between UI screens.
         function showScreen(screenName) {
-            const screens = ['authContainer', 'accessDeniedContainer', 'dashboardPanel'];
-            screens.forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            ['authContainer', 'accessDeniedContainer', 'dashboardPanel'].forEach(id => {
+                document.getElementById(id)?.classList.add('hidden');
+            });
             document.getElementById(screenName)?.classList.remove('hidden');
         }
 
-        // Listen for authentication state changes.
         onAuthStateChanged(auth, user => {
             if (user) {
                 if (user.email?.toLowerCase() === ADMIN_EMAIL) {
@@ -296,28 +290,21 @@
 
         const handleSignOut = () => signOut(auth);
 
-        // Event listeners for buttons.
         ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
         ui.logoutDeniedBtn.addEventListener('click', handleSignOut);
         ui.logoutBtn.addEventListener('click', handleSignOut);
         ui.exportReportBtn.addEventListener('click', generateGeneralReportPDF);
 
-        // Fetches all raffle data from Firestore.
         async function loadDashboardData() {
             try {
                 const querySnapshot = await getDocs(collection(db, "rifas"));
-                allRafflesData = [];
-                querySnapshot.forEach((doc) => {
-                    allRafflesData.push({ id: doc.id, ...doc.data() });
-                });
+                allRafflesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 processAndRenderMetrics(allRafflesData);
             } catch (error) {
-                console.error("Error fetching raffles for dashboard:", error);
-                // Not using alert for better user experience
+                console.error("Erro ao carregar os dados do painel:", error);
             }
         }
 
-        // Processes the fetched data and updates the UI metrics.
         function processAndRenderMetrics(raffles) {
             if (!raffles || raffles.length === 0) return;
 
@@ -347,7 +334,6 @@
             renderAttentionList(lowPerformers);
         }
 
-        // Renders the Top 5 Sellers bar chart.
         function renderTopSellersChart(topSellers) {
             const ctx = ui.topSellersChartCanvas.getContext('2d');
             if (topSellersChart) topSellersChart.destroy();
@@ -365,16 +351,13 @@
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
                     scales: { x: { beginAtZero: true } },
                     plugins: { legend: { display: false } }
                 }
             });
         }
 
-        // Renders the list of sellers needing attention.
         function renderAttentionList(lowPerformers) {
             ui.attentionList.innerHTML = '';
             if (lowPerformers.length === 0) {
@@ -388,106 +371,126 @@
             });
         }
         
-        // Generates and downloads a general PDF report.
+        /**
+         * @function generateGeneralReportPDF
+         * @description Gera um relatório PDF completo com resumo e detalhes de vendas por vendedor.
+         * Esta função foi reescrita do zero para garantir robustez e tratamento de erros.
+         */
         function generateGeneralReportPDF() {
             const btn = ui.exportReportBtn;
-            if (btn.disabled) return; 
 
-            if (allRafflesData.length === 0) {
-                console.log("No data available to generate a report.");
-                return;
-            }
-            
+            // Bloqueia o botão para evitar cliques múltiplos
+            if (btn.disabled) return;
             btn.disabled = true;
             btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
-            
+
             try {
-                // Use the most direct and robust way to instantiate jsPDF
-                const doc = new window.jspdf.jsPDF();
-                
-                // Check if the autoTable plugin is loaded.
+                // 1. VERIFICAÇÃO DAS BIBLIOTECAS
+                // Garante que os objetos jsPDF e autoTable estão disponíveis no escopo global (window)
+                if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                    throw new Error("A biblioteca jsPDF não foi carregada corretamente.");
+                }
+                const { jsPDF } = window.jspdf;
+                // A função autoTable é adicionada ao protótipo do jsPDF, por isso a verificamos depois de instanciar.
+
+                // 2. VERIFICAÇÃO DOS DADOS
+                if (!allRafflesData || allRafflesData.length === 0) {
+                    console.warn("Não há dados para gerar o relatório.");
+                    // Não usamos alert para não interromper o usuário. O console é suficiente.
+                    throw new Error("Dados insuficientes para o relatório.");
+                }
+
+                // 3. INICIALIZAÇÃO DO DOCUMENTO
+                const doc = new jsPDF();
                 if (typeof doc.autoTable !== 'function') {
-                    console.error("jsPDF.autoTable is not a function. The plugin might not have loaded correctly.");
-                    // Re-enable the button to allow retries
-                    btn.disabled = false;
-                    btn.innerHTML = 'Exportar Relatório Geral (PDF)';
-                    return; 
+                    // Esta é a verificação crucial. Se falhar, o plugin não carregou.
+                    throw new Error("O plugin jsPDF-AutoTable não foi carregado corretamente.");
                 }
                 
-                // Report Cover
+                // 4. CRIAÇÃO DO CONTEÚDO DO PDF
+                
+                // --- Página de Título ---
                 doc.setFontSize(22);
                 doc.setFont('helvetica', 'bold');
                 doc.text("Relatório Geral da Rifa", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
-                
                 doc.setFontSize(12);
                 doc.setFont('helvetica', 'normal');
-                doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+                const generationDate = new Date();
+                doc.text(`Gerado em: ${generationDate.toLocaleDateString('pt-BR')} às ${generationDate.toLocaleTimeString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
 
-                // Summary Page
+                // --- Página de Resumo Geral ---
                 doc.addPage();
-                doc.setFontSize(16);
+                doc.setFontSize(18);
                 doc.setFont('helvetica', 'bold');
-                doc.text("Resumo Geral", 14, 20);
+                doc.text("Resumo Geral", 14, 22);
                 
-                // Recalculate metrics to ensure they are current.
+                // Recalcula as métricas para garantir que os dados estão frescos
                 let totalSold = 0;
                 let totalNumbers = 0;
                 const raffleValue = parseFloat(String(allRafflesData[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
+                
                 allRafflesData.forEach(raffle => {
                     totalSold += raffle.numeros?.filter(n => n.vendido).length || 0;
                     totalNumbers += raffle.numeros?.length || 0;
                 });
                 const totalRevenue = totalSold * raffleValue;
                 const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
-
-                // Use autoTable for the summary.
+                
+                const summaryBody = [
+                    ['Total Arrecadado', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
+                    ['Vendedores Ativos', allRafflesData.length.toString()],
+                    ['Total de Números', totalNumbers.toString()],
+                    ['Total Vendidos', totalSold.toString()],
+                    ['Progresso de Vendas', `${salesPercentage.toFixed(1)}%`],
+                ];
+                
                 doc.autoTable({
                     startY: 30,
                     head: [['Métrica', 'Valor']],
-                    body: [
-                        ['Total Arrecadado', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
-                        ['Vendedores Ativos', allRafflesData.length.toString()],
-                        ['Total de Números', totalNumbers.toString()],
-                        ['Total de Vendidos', totalSold.toString()],
-                        ['Progresso de Vendas', `${salesPercentage.toFixed(1)}%`],
-                    ],
-                    theme: 'grid'
+                    body: summaryBody,
+                    theme: 'grid',
+                    headStyles: { fillColor: [41, 128, 185] },
                 });
 
-                // Details per seller
+                // --- Páginas de Detalhes por Vendedor ---
                 allRafflesData.forEach(raffle => {
                     const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
+                    
                     if (soldNumbers.length > 0) {
                         doc.addPage();
-                        doc.setFontSize(16);
+                        doc.setFontSize(18);
                         doc.setFont('helvetica', 'bold');
-                        doc.text(`Vendas de: ${raffle.vendedor}`, 14, 20);
+                        doc.text(`Detalhes de Vendas: ${raffle.vendedor}`, 14, 22);
 
                         const tableBody = soldNumbers.map(n => [
                             n.numero,
                             n.comprador,
-                            n.telefone || 'Não informado'
+                            n.telefone || 'N/A'
                         ]);
 
                         doc.autoTable({
                             startY: 30,
                             head: [['Número', 'Comprador', 'Telefone']],
                             body: tableBody,
-                            theme: 'striped'
+                            theme: 'striped',
+                            headStyles: { fillColor: [41, 128, 185] },
                         });
                     }
                 });
+                
+                // 5. SALVAR O ARQUIVO
+                doc.save(`Relatorio_Rifas_${generationDate.toISOString().slice(0,10)}.pdf`);
 
-                doc.save(`Relatorio-Geral-Rifas-${new Date().toISOString().slice(0,10)}.pdf`);
             } catch (error) {
-                console.error("Erro ao gerar PDF:", error);
+                // Se qualquer erro ocorrer, ele será capturado aqui
+                console.error("Falha ao gerar o relatório em PDF:", error);
+                // Opcional: mostrar uma notificação de erro para o usuário de forma não intrusiva.
             } finally {
+                // Garante que o botão seja reativado, mesmo que ocorra um erro
                 btn.disabled = false;
                 btn.innerHTML = 'Exportar Relatório Geral (PDF)';
             }
         }
-
     </script>
 </body>
 </html>
-
