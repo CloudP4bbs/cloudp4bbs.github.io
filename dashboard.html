@@ -6,12 +6,16 @@
     <title>Painel do Administrador - RifaACS</title>
     <!-- Biblioteca de Gráficos (Chart.js) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Biblioteca para PDF (jsPDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.autotable.min.js"></script>
     <style>
         :root {
             --primary-color: #3B82F6;
             --success-color: #10B981;
             --danger-color: #EF4444;
             --warning-color: #F59E0B;
+            --info-color: #38BDF8;
             --light-gray: #F3F4F6;
             --medium-gray: #E5E7EB;
             --dark-gray: #374151;
@@ -53,8 +57,8 @@
         .card p { font-size: 16px; color: var(--text-gray); margin-bottom: 24px; }
 
         .button {
-            padding: 12px 24px;
-            font-size: 16px;
+            padding: 10px 20px;
+            font-size: 14px;
             border-radius: 8px;
             border: none;
             cursor: pointer;
@@ -68,6 +72,7 @@
         
         .primary-button { background-color: var(--primary-color); color: white; }
         .danger-button { background-color: var(--danger-color); color: white; }
+        .info-button { background-color: var(--info-color); color: white;}
 
         .hidden { display: none !important; }
 
@@ -98,15 +103,7 @@
             align-items: center;
             gap: 16px;
         }
-        .stat-card .icon {
-            font-size: 24px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .stat-card .icon { font-size: 24px; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         .stat-card .icon.revenue { background-color: #E0F2FE; color: #0284C7; }
         .stat-card .icon.sellers { background-color: #E0E7FF; color: #4F46E5; }
         .stat-card .icon.progress { background-color: #D1FAE5; color: #059669; }
@@ -114,71 +111,36 @@
         .stat-card .info h3 { font-size: 24px; margin: 0 0 4px 0; }
         .stat-card .info p { font-size: 14px; color: var(--text-gray); margin: 0; }
         
-        .progress-section {
-            background-color: white;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            margin-bottom: 24px;
-        }
-        .progress-section h3 { margin: 0 0 16px 0; }
-        .progress-bar-container {
-            background-color: var(--light-gray);
-            height: 12px;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            background-color: var(--success-color);
-            height: 100%;
-            width: 0%;
-            border-radius: 6px;
-            transition: width 0.5s ease-in-out;
-        }
+        .progress-section { background-color: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .progress-section h3 { margin: 0 0 16px 0; font-size: 18px; }
+        .progress-bar-container { background-color: var(--light-gray); height: 12px; border-radius: 6px; overflow: hidden; }
+        .progress-bar { background-color: var(--success-color); height: 100%; width: 0%; border-radius: 6px; transition: width 0.5s ease-in-out; }
         
-        .main-content-grid {
-             display: grid;
-             grid-template-columns: 1fr;
-             gap: 24px;
-        }
+        .main-content-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
         
         @media (min-width: 1024px) {
-            .main-content-grid {
-                grid-template-columns: 2fr 1fr;
-            }
+            .main-content-grid { grid-template-columns: 2fr 1fr; }
         }
 
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-        }
+        .content-section { background-color: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .content-section h2 { font-size: 20px; margin: 0 0 20px 0; }
         
-        .nav-card {
-            display: block;
-            background-color: #F9FAFB;
-            padding: 24px;
-            border-radius: 16px;
-            text-decoration: none;
-            color: var(--dark-gray);
-            transition: all 0.2s;
-            text-align: left;
-            border: 1px solid var(--medium-gray);
-        }
-        .nav-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-            border-color: var(--primary-color);
-        }
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        
+        .nav-card { display: block; background-color: #F9FAFB; padding: 24px; border-radius: 16px; text-decoration: none; color: var(--dark-gray); transition: all 0.2s; text-align: left; border: 1px solid var(--medium-gray); }
+        .nav-card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); border-color: var(--primary-color); }
         .nav-card h3 { font-size: 18px; margin: 16px 0 8px 0; }
         .nav-card p { font-size: 14px; color: var(--text-gray); line-height: 1.5; margin: 0; }
 
-        .chart-container {
-            background-color: white;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
+        .chart-container { position: relative; height: 400px; /* Altura fixa para o container do gráfico */ }
+
+        .attention-list { list-style-type: none; padding: 0; margin: 0; }
+        .attention-list li { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--light-gray); }
+        .attention-list li:last-child { border-bottom: none; }
+        .attention-list .name { font-weight: 500; }
+        .attention-list .detail { font-size: 14px; color: var(--text-gray); }
+        .spinner-sm { border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -212,63 +174,54 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="icon revenue">💰</div>
-                    <div class="info">
-                        <h3 id="totalRevenue">R$ 0,00</h3>
-                        <p>Total Arrecadado</p>
-                    </div>
+                    <div class="info"><h3 id="totalRevenue">R$ 0,00</h3><p>Total Arrecadado</p></div>
                 </div>
                 <div class="stat-card">
                     <div class="icon sellers">👥</div>
-                    <div class="info">
-                        <h3 id="activeSellers">0</h3>
-                        <p>Vendedores Ativos</p>
-                    </div>
+                    <div class="info"><h3 id="activeSellers">0</h3><p>Vendedores Ativos</p></div>
                 </div>
                 <div class="stat-card">
                     <div class="icon progress">📈</div>
-                    <div class="info">
-                        <h3 id="salesProgress">0%</h3>
-                        <p>Progresso de Vendas</p>
-                    </div>
+                    <div class="info"><h3 id="salesProgress">0%</h3><p>Progresso de Vendas</p></div>
                 </div>
             </div>
 
             <!-- Barra de Progresso Geral -->
             <div class="progress-section">
                 <h3>Progresso Geral de Vendas</h3>
-                <div class="progress-bar-container">
-                    <div id="progressBar" class="progress-bar"></div>
-                </div>
+                <div class="progress-bar-container"><div id="progressBar" class="progress-bar"></div></div>
             </div>
 
             <div class="main-content-grid">
-                <!-- Links de Navegação -->
-                <div class="nav-links-section">
-                    <h2>Ferramentas de Gestão</h2>
-                    <div class="nav-grid">
-                         <a href="admin.html" class="nav-card">
-                            <h3>📊 Gerir Rifas</h3>
-                            <p>Visualize vendas, estatísticas e detalhes dos números.</p>
-                        </a>
-                        <a href="gerar_rifa.html" class="nav-card">
-                            <h3>📄 Gerar Bloco</h3>
-                            <p>Crie PDFs com blocos de rifa para impressão.</p>
-                        </a>
-                        <a href="canhoto.html" class="nav-card">
-                            <h3>🖨️ Imprimir Canhotos</h3>
-                            <p>Gere os canhotos dos números vendidos para o sorteio.</p>
-                        </a>
-                        <a href="sorteador.html" class="nav-card">
-                            <h3>🏆 Realizar Sorteio</h3>
-                            <p>Sorteie os ganhadores e registe os resultados.</p>
-                        </a>
+                <!-- Coluna Esquerda: Ferramentas e Relatórios -->
+                <div class="left-column" style="display: flex; flex-direction: column; gap: 24px;">
+                    <div class="content-section">
+                        <h2>Ferramentas de Gestão</h2>
+                        <div class="nav-grid">
+                             <a href="admin.html" class="nav-card"><h3>📊 Gerir Rifas</h3><p>Visualize vendas, estatísticas e detalhes dos números.</p></a>
+                             <a href="gerar_rifa.html" class="nav-card"><h3>📄 Gerar Bloco</h3><p>Crie PDFs com blocos de rifa para impressão.</p></a>
+                             <a href="canhoto.html" class="nav-card"><h3>🖨️ Imprimir Canhotos</h3><p>Gere os canhotos dos números vendidos para o sorteio.</p></a>
+                             <a href="sorteador.html" class="nav-card"><h3>🏆 Realizar Sorteio</h3><p>Sorteie os ganhadores e registe os resultados.</p></a>
+                        </div>
+                    </div>
+                    <div class="content-section">
+                        <h2>Relatórios</h2>
+                        <button id="exportReportBtn" class="button info-button">Exportar Relatório Geral (PDF)</button>
                     </div>
                 </div>
 
-                <!-- Gráfico de Vendedores -->
-                <div class="chart-container">
-                    <h3>🏆 Top 5 Vendedores</h3>
-                    <canvas id="topSellersChart"></canvas>
+                <!-- Coluna Direita: Gráficos e Insights -->
+                <div class="right-column" style="display: flex; flex-direction: column; gap: 24px;">
+                    <div class="content-section chart-container">
+                        <h3>🏆 Top 5 Vendedores</h3>
+                        <canvas id="topSellersChart"></canvas>
+                    </div>
+                    <div class="content-section">
+                        <h3>⚠️ Pontos de Atenção</h3>
+                        <ul id="attentionList" class="attention-list">
+                            <!-- Lista será preenchida dinamicamente -->
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -307,8 +260,11 @@
             salesProgress: document.getElementById('salesProgress'),
             progressBar: document.getElementById('progressBar'),
             topSellersChartCanvas: document.getElementById('topSellersChart'),
+            attentionList: document.getElementById('attentionList'),
+            exportReportBtn: document.getElementById('exportReportBtn'),
         };
         let topSellersChart = null;
+        let allRafflesData = []; // Cache dos dados
 
         function showScreen(screenName) {
             const screens = ['authContainer', 'accessDeniedContainer', 'dashboardPanel'];
@@ -335,15 +291,16 @@
         ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
         ui.logoutDeniedBtn.addEventListener('click', handleSignOut);
         ui.logoutBtn.addEventListener('click', handleSignOut);
+        ui.exportReportBtn.addEventListener('click', generateGeneralReportPDF);
 
         async function loadDashboardData() {
             try {
                 const querySnapshot = await getDocs(collection(db, "rifas"));
-                const allRaffles = [];
+                allRafflesData = [];
                 querySnapshot.forEach((doc) => {
-                    allRaffles.push({ id: doc.id, ...doc.data() });
+                    allRafflesData.push({ id: doc.id, ...doc.data() });
                 });
-                processAndRenderMetrics(allRaffles);
+                processAndRenderMetrics(allRafflesData);
             } catch (error) {
                 console.error("Error fetching raffles for dashboard:", error);
                 alert("Não foi possível carregar os dados do painel.");
@@ -356,48 +313,41 @@
             let totalSold = 0;
             let totalNumbers = 0;
             let totalRevenue = 0;
-            const raffleValue = parseFloat(String(raffles[0].valorRifa).replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
+            const raffleValue = parseFloat(String(raffles[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
 
             const sellerPerformance = raffles.map(raffle => {
                 const soldCount = raffle.numeros?.filter(n => n.vendido).length || 0;
                 totalSold += soldCount;
                 totalNumbers += raffle.numeros?.length || 0;
-                return { name: raffle.vendedor, soldCount: soldCount };
+                return { name: raffle.vendedor, soldCount: soldCount, total: raffle.numeros?.length || 0 };
             });
 
             totalRevenue = totalSold * raffleValue;
             const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
             
-            // Renderiza os cards
             ui.totalRevenue.textContent = `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`;
             ui.activeSellers.textContent = raffles.length;
             ui.salesProgress.textContent = `${salesPercentage.toFixed(1)}%`;
-            
-            // Renderiza a barra de progresso
             ui.progressBar.style.width = `${salesPercentage}%`;
             
-            // Processa e renderiza o gráfico
-            const topSellers = sellerPerformance.sort((a, b) => b.soldCount - a.soldCount).slice(0, 5);
+            const topSellers = [...sellerPerformance].sort((a, b) => b.soldCount - a.soldCount).slice(0, 5);
             renderTopSellersChart(topSellers);
+            
+            const lowPerformers = sellerPerformance.filter(s => s.soldCount < 5).sort((a, b) => a.soldCount - b.soldCount);
+            renderAttentionList(lowPerformers);
         }
 
         function renderTopSellersChart(topSellers) {
             const ctx = ui.topSellersChartCanvas.getContext('2d');
-            const labels = topSellers.map(s => s.name);
-            const data = topSellers.map(s => s.soldCount);
-
-            if (topSellersChart) {
-                topSellersChart.destroy();
-            }
-
+            if (topSellersChart) topSellersChart.destroy();
             topSellersChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels: topSellers.map(s => s.name),
                     datasets: [{
                         label: 'Rifas Vendidas',
-                        data: data,
-                        backgroundColor: '#3B82F6',
+                        data: topSellers.map(s => s.soldCount),
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
                         borderColor: '#2563EB',
                         borderWidth: 1,
                         borderRadius: 4
@@ -406,24 +356,97 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    indexAxis: 'y', // Gráfico de barras horizontais
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            grid: { display: false }
-                        },
-                        y: {
-                            grid: { display: false }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
+                    indexAxis: 'y',
+                    scales: { x: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
                 }
             });
         }
+
+        function renderAttentionList(lowPerformers) {
+            ui.attentionList.innerHTML = '';
+            if (lowPerformers.length === 0) {
+                ui.attentionList.innerHTML = '<li><span class="detail">Nenhum vendedor com baixo desempenho. Bom trabalho!</span></li>';
+                return;
+            }
+            lowPerformers.forEach(seller => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="name">${seller.name}</span><span class="detail">${seller.soldCount} de ${seller.total} vendidas</span>`;
+                ui.attentionList.appendChild(li);
+            });
+        }
+        
+        function generateGeneralReportPDF() {
+            if (allRafflesData.length === 0) {
+                alert("Não há dados para gerar o relatório.");
+                return;
+            }
+
+            const btn = ui.exportReportBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
+            
+            const { jsPDF } = window;
+            const doc = new jsPDF();
+            
+            // Capa do Relatório
+            doc.setFontSize(22);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Relatório Geral da Rifa", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+
+            // Resumo
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Resumo Geral", 14, 80);
+            
+            const totalRevenue = ui.totalRevenue.textContent;
+            const activeSellers = ui.activeSellers.textContent;
+            const salesProgress = ui.salesProgress.textContent;
+            
+            doc.autoTable({
+                startY: 90,
+                head: [['Métrica', 'Valor']],
+                body: [
+                    ['Total Arrecadado', totalRevenue],
+                    ['Vendedores Ativos', activeSellers],
+                    ['Progresso de Vendas', salesProgress],
+                ],
+                theme: 'grid'
+            });
+
+            // Detalhes por Vendedor
+            allRafflesData.forEach(raffle => {
+                const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
+                if (soldNumbers.length > 0) {
+                    doc.addPage();
+                    doc.setFontSize(16);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Vendas de: ${raffle.vendedor}`, 14, 20);
+
+                    const tableBody = soldNumbers.map(n => [
+                        n.numero,
+                        n.comprador,
+                        n.telefone || 'Não informado'
+                    ]);
+
+                    doc.autoTable({
+                        startY: 30,
+                        head: [['Número', 'Comprador', 'Telefone']],
+                        body: tableBody,
+                        theme: 'striped'
+                    });
+                }
+            });
+
+            doc.save(`Relatorio-Geral-Rifas-${new Date().toISOString().slice(0,10)}.pdf`);
+            btn.disabled = false;
+            btn.innerHTML = 'Exportar Relatório Geral (PDF)';
+        }
+
     </script>
 </body>
 </html>
