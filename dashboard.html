@@ -312,7 +312,6 @@
 
             let totalSold = 0;
             let totalNumbers = 0;
-            let totalRevenue = 0;
             const raffleValue = parseFloat(String(raffles[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
 
             const sellerPerformance = raffles.map(raffle => {
@@ -322,7 +321,7 @@
                 return { name: raffle.vendedor, soldCount: soldCount, total: raffle.numeros?.length || 0 };
             });
 
-            totalRevenue = totalSold * raffleValue;
+            const totalRevenue = totalSold * raffleValue;
             const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
             
             ui.totalRevenue.textContent = `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`;
@@ -377,74 +376,92 @@
         }
         
         function generateGeneralReportPDF() {
+            const btn = ui.exportReportBtn;
+            if (btn.disabled) return; 
+
             if (allRafflesData.length === 0) {
                 alert("Não há dados para gerar o relatório.");
                 return;
             }
-
-            const btn = ui.exportReportBtn;
+            
             btn.disabled = true;
             btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
             
-            const { jsPDF } = window;
-            const doc = new jsPDF();
-            
-            // Capa do Relatório
-            doc.setFontSize(22);
-            doc.setFont('helvetica', 'bold');
-            doc.text("Relatório Geral da Rifa", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
-            
-            doc.setFontSize(12);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+            try {
+                const { jsPDF } = window;
+                const doc = new jsPDF();
+                
+                // Capa do Relatório
+                doc.setFontSize(22);
+                doc.setFont('helvetica', 'bold');
+                doc.text("Relatório Geral da Rifa", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+                
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
 
-            // Resumo
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text("Resumo Geral", 14, 80);
-            
-            const totalRevenue = ui.totalRevenue.textContent;
-            const activeSellers = ui.activeSellers.textContent;
-            const salesProgress = ui.salesProgress.textContent;
-            
-            doc.autoTable({
-                startY: 90,
-                head: [['Métrica', 'Valor']],
-                body: [
-                    ['Total Arrecadado', totalRevenue],
-                    ['Vendedores Ativos', activeSellers],
-                    ['Progresso de Vendas', salesProgress],
-                ],
-                theme: 'grid'
-            });
+                // Resumo
+                doc.addPage();
+                doc.setFontSize(16);
+                doc.setFont('helvetica', 'bold');
+                doc.text("Resumo Geral", 14, 20);
+                
+                // Recalcula as métricas para garantir que estão corretas
+                let totalSold = 0;
+                let totalNumbers = 0;
+                const raffleValue = parseFloat(String(allRafflesData[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
+                allRafflesData.forEach(raffle => {
+                    totalSold += raffle.numeros?.filter(n => n.vendido).length || 0;
+                    totalNumbers += raffle.numeros?.length || 0;
+                });
+                const totalRevenue = totalSold * raffleValue;
+                const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
 
-            // Detalhes por Vendedor
-            allRafflesData.forEach(raffle => {
-                const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
-                if (soldNumbers.length > 0) {
-                    doc.addPage();
-                    doc.setFontSize(16);
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`Vendas de: ${raffle.vendedor}`, 14, 20);
+                doc.autoTable({
+                    startY: 30,
+                    head: [['Métrica', 'Valor']],
+                    body: [
+                        ['Total Arrecadado', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
+                        ['Vendedores Ativos', allRafflesData.length.toString()],
+                        ['Total de Números', totalNumbers.toString()],
+                        ['Total de Vendidos', totalSold.toString()],
+                        ['Progresso de Vendas', `${salesPercentage.toFixed(1)}%`],
+                    ],
+                    theme: 'grid'
+                });
 
-                    const tableBody = soldNumbers.map(n => [
-                        n.numero,
-                        n.comprador,
-                        n.telefone || 'Não informado'
-                    ]);
+                // Detalhes por Vendedor
+                allRafflesData.forEach(raffle => {
+                    const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
+                    if (soldNumbers.length > 0) {
+                        doc.addPage();
+                        doc.setFontSize(16);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(`Vendas de: ${raffle.vendedor}`, 14, 20);
 
-                    doc.autoTable({
-                        startY: 30,
-                        head: [['Número', 'Comprador', 'Telefone']],
-                        body: tableBody,
-                        theme: 'striped'
-                    });
-                }
-            });
+                        const tableBody = soldNumbers.map(n => [
+                            n.numero,
+                            n.comprador,
+                            n.telefone || 'Não informado'
+                        ]);
 
-            doc.save(`Relatorio-Geral-Rifas-${new Date().toISOString().slice(0,10)}.pdf`);
-            btn.disabled = false;
-            btn.innerHTML = 'Exportar Relatório Geral (PDF)';
+                        doc.autoTable({
+                            startY: 30,
+                            head: [['Número', 'Comprador', 'Telefone']],
+                            body: tableBody,
+                            theme: 'striped'
+                        });
+                    }
+                });
+
+                doc.save(`Relatorio-Geral-Rifas-${new Date().toISOString().slice(0,10)}.pdf`);
+            } catch (error) {
+                console.error("Erro ao gerar PDF:", error);
+                alert(`Ocorreu um erro ao gerar o relatório: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Exportar Relatório Geral (PDF)';
+            }
         }
 
     </script>
