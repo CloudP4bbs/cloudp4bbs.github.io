@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Administrador - RifaACS</title>
-    <!-- Apenas o Chart.js permanece no head. As bibliotecas de PDF serão carregadas dinamicamente. -->
+    <!-- Bibliotecas carregadas diretamente no head para máxima compatibilidade -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root {
             --primary-color: #3B82F6;
@@ -155,6 +157,7 @@
             z-index: 1000;
             opacity: 0;
             transition: opacity 0.3s, top 0.3s;
+            pointer-events: none;
         }
         #notification.show {
             opacity: 1;
@@ -320,7 +323,7 @@
         ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
         ui.logoutDeniedBtn.addEventListener('click', handleSignOut);
         ui.logoutBtn.addEventListener('click', handleSignOut);
-        ui.exportReportBtn.addEventListener('click', handleExportClick);
+        ui.exportReportBtn.addEventListener('click', generateGeneralReportPDF); // Evento direto
 
         async function loadDashboardData() {
             try {
@@ -378,136 +381,100 @@
             });
         }
 
-        // --- NOVA ABORDAGEM: CARREGAMENTO DINÂMICO DE SCRIPTS ---
-
-        /**
-         * @function loadScript
-         * @description Carrega um script dinamicamente e retorna uma Promise.
-         * @param {string} src - O URL do script a ser carregado.
-         * @returns {Promise<void>}
-         */
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = src;
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error(`Falha ao carregar o script: ${src}`));
-                document.head.appendChild(script);
-            });
-        }
-
-        /**
-         * @function handleExportClick
-         * @description Função principal que lida com o clique no botão de exportar.
-         */
-        async function handleExportClick() {
-            const btn = ui.exportReportBtn;
-            if (btn.disabled) return;
-            btn.disabled = true;
-            btn.innerHTML = '<div class="spinner-sm"></div> A preparar...';
-
-            try {
-                // Carrega as bibliotecas em sequência, se ainda não estiverem carregadas
-                if (typeof window.jspdf === 'undefined') {
-                    showNotification("A carregar bibliotecas do PDF...", "info");
-                    // CORREÇÃO: Mudar para o CDN JSDelivr para maior fiabilidade
-                    await loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js");
-                    await loadScript("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js");
-                }
-                
-                // Uma vez carregadas, executa a função de geração real
-                generateGeneralReportPDF();
-
-            } catch (error) {
-                console.error("Erro no processo de exportação:", error);
-                showNotification(error.message, 'danger');
-                 // Reativa o botão em caso de falha no carregamento
-                btn.disabled = false;
-                btn.innerHTML = 'Exportar Relatório Geral (PDF)';
-            }
-        }
-
         /**
          * @function generateGeneralReportPDF
-         * @description Gera o documento PDF (assume que as bibliotecas já estão carregadas).
+         * @description Abordagem simplificada. Gera o PDF, assumindo que os scripts no <head> carregaram corretamente.
          */
         function generateGeneralReportPDF() {
             const btn = ui.exportReportBtn;
+            if (btn.disabled) return;
+            btn.disabled = true;
             btn.innerHTML = '<div class="spinner-sm"></div> A gerar PDF...';
 
-            try {
-                // Validação final para garantir que tudo está pronto
-                if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.jsPDF.prototype.autoTable === 'undefined') {
-                    throw new Error("As bibliotecas de PDF não foram inicializadas corretamente.");
-                }
-
-                if (!allRafflesData || allRafflesData.length === 0) {
-                    throw new Error("Não há dados de rifas para gerar o relatório.");
-                }
-
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                const generationDate = new Date();
-                const fileName = `Relatorio_Rifas_${generationDate.toISOString().slice(0,10)}.pdf`;
-
-                // Conteúdo do PDF...
-                doc.setFontSize(20).setFont('helvetica', 'bold');
-                doc.text("Relatório Geral da Campanha de Rifas", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
-                doc.setFontSize(12).setFont('helvetica', 'normal');
-                doc.text(`Gerado em: ${generationDate.toLocaleString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
-                doc.setProperties({ title: fileName });
-
-                doc.addPage();
-                doc.setFontSize(18).setFont('helvetica', 'bold');
-                doc.text("Resumo Geral", 14, 22);
-                
-                let totalSold = 0, totalNumbers = 0;
-                const raffleValue = parseFloat(String(allRafflesData[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
-                allRafflesData.forEach(raffle => {
-                    totalSold += raffle.numeros?.filter(n => n.vendido).length || 0;
-                    totalNumbers += raffle.numeros?.length || 0;
-                });
-                const totalRevenue = totalSold * raffleValue;
-                const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
-                
-                doc.autoTable({
-                    startY: 30,
-                    head: [['Métrica', 'Valor']],
-                    body: [
-                        ['Total Arrecadado', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
-                        ['Vendedores Ativos', allRafflesData.length.toString()],
-                        ['Total de Números', totalNumbers.toString()],
-                        ['Total Vendidos', totalSold.toString()],
-                        ['Progresso de Vendas', `${salesPercentage.toFixed(1)}%`],
-                    ],
-                    theme: 'grid', headStyles: { fillColor: [22, 160, 133] },
-                });
-
-                allRafflesData.forEach(raffle => {
-                    const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
-                    if (soldNumbers.length > 0) {
-                        doc.addPage();
-                        doc.setFontSize(18).setFont('helvetica', 'bold');
-                        doc.text(`Vendas de: ${raffle.vendedor}`, 14, 22);
-                        doc.autoTable({
-                            startY: 30,
-                            head: [['Número', 'Comprador', 'Telefone']],
-                            body: soldNumbers.map(n => [n.numero, n.comprador, n.telefone || 'N/A']),
-                            theme: 'striped', headStyles: { fillColor: [41, 128, 185] },
-                        });
+            // Usamos um pequeno timeout para permitir que a UI do botão atualize antes do processamento.
+            setTimeout(() => {
+                try {
+                    // 1. VERIFICAÇÃO DAS BIBLIOTECAS
+                    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                        throw new Error("A biblioteca principal jsPDF não foi encontrada. Verifique a ligação à internet ou bloqueadores de script.");
                     }
-                });
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    
+                    // A verificação mais importante
+                    if (typeof doc.autoTable !== 'function') {
+                        throw new Error("O plugin jsPDF-AutoTable não foi carregado corretamente. A ordem dos scripts no HTML pode estar incorreta.");
+                    }
+                    
+                    // 2. VERIFICAÇÃO DOS DADOS
+                    if (!allRafflesData || allRafflesData.length === 0) {
+                        throw new Error("Não há dados de rifas para gerar o relatório.");
+                    }
 
-                doc.output('dataurlnewwindow');
-                showNotification("Relatório gerado com sucesso! Verifique o novo separador.", "success");
+                    // 3. CONSTRUÇÃO DO PDF
+                    const generationDate = new Date();
+                    const fileName = `Relatorio_Rifas_${generationDate.toISOString().slice(0,10)}.pdf`;
 
-            } catch (error) {
-                console.error("Falha detalhada ao gerar o PDF:", error);
-                showNotification(`Erro ao gerar PDF: ${error.message}`, 'danger');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Exportar Relatório Geral (PDF)';
-            }
+                    doc.setFontSize(20).setFont('helvetica', 'bold');
+                    doc.text("Relatório Geral da Campanha de Rifas", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+                    doc.setFontSize(12).setFont('helvetica', 'normal');
+                    doc.text(`Gerado em: ${generationDate.toLocaleString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
+                    doc.setProperties({ title: fileName });
+
+                    doc.addPage();
+                    doc.setFontSize(18).setFont('helvetica', 'bold');
+                    doc.text("Resumo Geral", 14, 22);
+                    
+                    let totalSold = 0, totalNumbers = 0;
+                    const raffleValue = parseFloat(String(allRafflesData[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
+                    allRafflesData.forEach(raffle => {
+                        totalSold += raffle.numeros?.filter(n => n.vendido).length || 0;
+                        totalNumbers += raffle.numeros?.length || 0;
+                    });
+                    const totalRevenue = totalSold * raffleValue;
+                    const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
+                    
+                    doc.autoTable({
+                        startY: 30,
+                        head: [['Métrica', 'Valor']],
+                        body: [
+                            ['Total Arrecadado', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
+                            ['Vendedores Ativos', allRafflesData.length.toString()],
+                            ['Total de Números', totalNumbers.toString()],
+                            ['Total Vendidos', totalSold.toString()],
+                            ['Progresso de Vendas', `${salesPercentage.toFixed(1)}%`],
+                        ],
+                        theme: 'grid', headStyles: { fillColor: [22, 160, 133] },
+                    });
+
+                    allRafflesData.forEach(raffle => {
+                        const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
+                        if (soldNumbers.length > 0) {
+                            doc.addPage();
+                            doc.setFontSize(18).setFont('helvetica', 'bold');
+                            doc.text(`Vendas de: ${raffle.vendedor}`, 14, 22);
+                            doc.autoTable({
+                                startY: 30,
+                                head: [['Número', 'Comprador', 'Telefone']],
+                                body: soldNumbers.map(n => [n.numero, n.comprador, n.telefone || 'N/A']),
+                                theme: 'striped', headStyles: { fillColor: [41, 128, 185] },
+                            });
+                        }
+                    });
+
+                    // 4. SAÍDA DO PDF
+                    doc.output('dataurlnewwindow');
+                    showNotification("Relatório gerado com sucesso! Verifique o novo separador.", "success");
+
+                } catch (error) {
+                    console.error("Falha detalhada ao gerar o PDF:", error);
+                    showNotification(`Erro: ${error.message}`, 'danger');
+                } finally {
+                    // 5. REATIVAR O BOTÃO
+                    btn.disabled = false;
+                    btn.innerHTML = 'Exportar Relatório Geral (PDF)';
+                }
+            }, 50); // Fim do setTimeout
         }
     </script>
 </body>
