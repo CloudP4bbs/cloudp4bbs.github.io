@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Administrador - RifaACS</title>
+    <!-- Biblioteca de Gráficos (Chart.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --primary-color: #3B82F6;
             --success-color: #10B981;
             --danger-color: #EF4444;
+            --warning-color: #F59E0B;
             --light-gray: #F3F4F6;
+            --medium-gray: #E5E7EB;
             --dark-gray: #374151;
             --text-gray: #6B7280;
         }
@@ -19,16 +23,14 @@
             background-color: var(--light-gray);
             color: var(--dark-gray);
             margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
             width: 100%;
-            max-width: 900px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
         .card {
@@ -38,19 +40,29 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             text-align: center;
         }
+
+        .auth-container {
+             display: flex;
+             flex-direction: column;
+             justify-content: center;
+             align-items: center;
+             min-height: 100vh;
+        }
         
         .card h1 { font-size: 28px; margin-bottom: 8px; }
-        .card h2 { font-size: 24px; margin-bottom: 8px; }
         .card p { font-size: 16px; color: var(--text-gray); margin-bottom: 24px; }
 
         .button {
             padding: 12px 24px;
-            font-size: 18px;
+            font-size: 16px;
             border-radius: 8px;
             border: none;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
         .button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         
@@ -61,75 +73,126 @@
 
         /* Estilos do Dashboard */
         .dashboard-header {
-            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .dashboard-header h1 { font-size: 28px; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             margin-bottom: 24px;
         }
 
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 24px;
-        }
-        
-        .nav-card {
-            display: block;
+        .stat-card {
             background-color: white;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            text-decoration: none;
-            color: var(--dark-gray);
-            transition: all 0.2s;
-            text-align: left;
-        }
-        .nav-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-        }
-        
-        .nav-card .icon {
-            font-size: 32px;
-            margin-bottom: 16px;
-            background-color: var(--light-gray);
-            width: 60px;
-            height: 60px;
+            padding: 20px;
             border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .stat-card .icon {
+            font-size: 24px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
         }
+        .stat-card .icon.revenue { background-color: #E0F2FE; color: #0284C7; }
+        .stat-card .icon.sellers { background-color: #E0E7FF; color: #4F46E5; }
+        .stat-card .icon.progress { background-color: #D1FAE5; color: #059669; }
+
+        .stat-card .info h3 { font-size: 24px; margin: 0 0 4px 0; }
+        .stat-card .info p { font-size: 14px; color: var(--text-gray); margin: 0; }
         
-        .nav-card h3 {
-            font-size: 20px;
-            margin-bottom: 8px;
+        .progress-section {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 24px;
+        }
+        .progress-section h3 { margin: 0 0 16px 0; }
+        .progress-bar-container {
+            background-color: var(--light-gray);
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            background-color: var(--success-color);
+            height: 100%;
+            width: 0%;
+            border-radius: 6px;
+            transition: width 0.5s ease-in-out;
         }
         
-        .nav-card p {
-            font-size: 14px;
-            color: var(--text-gray);
-            line-height: 1.5;
+        .main-content-grid {
+             display: grid;
+             grid-template-columns: 1fr;
+             gap: 24px;
+        }
+        
+        @media (min-width: 1024px) {
+            .main-content-grid {
+                grid-template-columns: 2fr 1fr;
+            }
         }
 
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .nav-card {
+            display: block;
+            background-color: #F9FAFB;
+            padding: 24px;
+            border-radius: 16px;
+            text-decoration: none;
+            color: var(--dark-gray);
+            transition: all 0.2s;
+            text-align: left;
+            border: 1px solid var(--medium-gray);
+        }
+        .nav-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            border-color: var(--primary-color);
+        }
+        .nav-card h3 { font-size: 18px; margin: 16px 0 8px 0; }
+        .nav-card p { font-size: 14px; color: var(--text-gray); line-height: 1.5; margin: 0; }
+
+        .chart-container {
+            background-color: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <!-- Tela de Login -->
-        <div id="authContainer" class="card">
+        <div id="authContainer" class="card auth-container">
             <h1>Painel do Administrador</h1>
             <p>Faça login para aceder às ferramentas de gestão da rifa.</p>
             <button id="loginBtn" class="button primary-button">Entrar com Google</button>
         </div>
         
-        <!-- Tela de Carregamento -->
-        <div id="loadingContainer" class="card hidden">
-            <h1>A carregar...</h1>
-            <p>A verificar as suas permissões.</p>
-        </div>
-
         <!-- Tela de Acesso Negado -->
-        <div id="accessDeniedContainer" class="card hidden">
+        <div id="accessDeniedContainer" class="card auth-container hidden">
              <h1>Acesso Negado</h1>
              <p>Apenas o administrador pode aceder a esta página.</p>
              <button id="logoutDeniedBtn" class="button danger-button">Sair</button>
@@ -138,28 +201,75 @@
         <!-- Painel Principal (Dashboard) -->
         <div id="dashboardPanel" class="hidden">
             <div class="dashboard-header">
-                <h1 id="welcomeMessage"></h1>
-                <p style="color: var(--text-gray); font-size: 18px;">Selecione uma ferramenta abaixo para começar.</p>
+                <div>
+                    <h1 id="welcomeMessage"></h1>
+                    <p style="color: var(--text-gray); font-size: 16px; margin: 4px 0 0 0;">Visão geral da sua campanha de rifas.</p>
+                </div>
+                <button id="logoutBtn" class="button danger-button">Sair</button>
             </div>
 
-            <div class="nav-grid">
-                <a href="gerar_rifa.html" class="nav-card">
-                    <div class="icon">📊</div>
-                    <h3>Gerir e Gerar Rifas</h3>
-                    <p>Selecione vendedores e gere os blocos de rifas em PDF para impressão.</p>
-                </a>
-                
-                <a href="canhoto.html" class="nav-card">
-                    <div class="icon">🖨️</div>
-                    <h3>Imprimir Canhotos</h3>
-                    <p>Gere um PDF com os canhotos de todos os números vendidos para o sorteio físico.</p>
-                </a>
-                
-                <a href="sorteador.html" class="nav-card">
-                    <div class="icon">🏆</div>
-                    <h3>Realizar Sorteio</h3>
-                    <p>Sorteie os ganhadores de forma segura e registe os resultados permanentemente.</p>
-                </a>
+            <!-- Métricas Rápidas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="icon revenue">💰</div>
+                    <div class="info">
+                        <h3 id="totalRevenue">R$ 0,00</h3>
+                        <p>Total Arrecadado</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon sellers">👥</div>
+                    <div class="info">
+                        <h3 id="activeSellers">0</h3>
+                        <p>Vendedores Ativos</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="icon progress">📈</div>
+                    <div class="info">
+                        <h3 id="salesProgress">0%</h3>
+                        <p>Progresso de Vendas</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barra de Progresso Geral -->
+            <div class="progress-section">
+                <h3>Progresso Geral de Vendas</h3>
+                <div class="progress-bar-container">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+            </div>
+
+            <div class="main-content-grid">
+                <!-- Links de Navegação -->
+                <div class="nav-links-section">
+                    <h2>Ferramentas de Gestão</h2>
+                    <div class="nav-grid">
+                         <a href="admin.html" class="nav-card">
+                            <h3>📊 Gerir Rifas</h3>
+                            <p>Visualize vendas, estatísticas e detalhes dos números.</p>
+                        </a>
+                        <a href="gerar_rifa.html" class="nav-card">
+                            <h3>📄 Gerar Bloco</h3>
+                            <p>Crie PDFs com blocos de rifa para impressão.</p>
+                        </a>
+                        <a href="canhoto.html" class="nav-card">
+                            <h3>🖨️ Imprimir Canhotos</h3>
+                            <p>Gere os canhotos dos números vendidos para o sorteio.</p>
+                        </a>
+                        <a href="sorteador.html" class="nav-card">
+                            <h3>🏆 Realizar Sorteio</h3>
+                            <p>Sorteie os ganhadores e registe os resultados.</p>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Vendedores -->
+                <div class="chart-container">
+                    <h3>🏆 Top 5 Vendedores</h3>
+                    <canvas id="topSellersChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -167,6 +277,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const ADMIN_EMAIL = 'cloudp4@gmail.com';
 
@@ -181,29 +292,36 @@
         
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
 
         const ui = {
             authContainer: document.getElementById('authContainer'),
-            loadingContainer: document.getElementById('loadingContainer'),
             accessDeniedContainer: document.getElementById('accessDeniedContainer'),
             dashboardPanel: document.getElementById('dashboardPanel'),
             loginBtn: document.getElementById('loginBtn'),
             logoutDeniedBtn: document.getElementById('logoutDeniedBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
             welcomeMessage: document.getElementById('welcomeMessage'),
+            totalRevenue: document.getElementById('totalRevenue'),
+            activeSellers: document.getElementById('activeSellers'),
+            salesProgress: document.getElementById('salesProgress'),
+            progressBar: document.getElementById('progressBar'),
+            topSellersChartCanvas: document.getElementById('topSellersChart'),
         };
+        let topSellersChart = null;
 
         function showScreen(screenName) {
-            const screens = ['authContainer', 'loadingContainer', 'accessDeniedContainer', 'dashboardPanel'];
-            screens.forEach(screen => ui[screen].classList.add('hidden'));
-            ui[screenName].classList.remove('hidden');
+            const screens = ['authContainer', 'accessDeniedContainer', 'dashboardPanel'];
+            screens.forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            document.getElementById(screenName)?.classList.remove('hidden');
         }
 
         onAuthStateChanged(auth, user => {
             if (user) {
-                showScreen('loadingContainer');
                 if (user.email?.toLowerCase() === ADMIN_EMAIL) {
-                    ui.welcomeMessage.textContent = `Bem-vindo(a), ${user.displayName || 'Admin'}!`;
+                    ui.welcomeMessage.textContent = `Bem-vindo, ${user.displayName?.split(' ')[0] || 'Admin'}!`;
                     showScreen('dashboardPanel');
+                    loadDashboardData();
                 } else {
                     showScreen('accessDeniedContainer');
                 }
@@ -212,10 +330,100 @@
             }
         });
 
-        // Event Listeners
-        ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
-        ui.logoutDeniedBtn.addEventListener('click', () => signOut(auth));
+        const handleSignOut = () => signOut(auth);
 
+        ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
+        ui.logoutDeniedBtn.addEventListener('click', handleSignOut);
+        ui.logoutBtn.addEventListener('click', handleSignOut);
+
+        async function loadDashboardData() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "rifas"));
+                const allRaffles = [];
+                querySnapshot.forEach((doc) => {
+                    allRaffles.push({ id: doc.id, ...doc.data() });
+                });
+                processAndRenderMetrics(allRaffles);
+            } catch (error) {
+                console.error("Error fetching raffles for dashboard:", error);
+                alert("Não foi possível carregar os dados do painel.");
+            }
+        }
+
+        function processAndRenderMetrics(raffles) {
+            if (!raffles || raffles.length === 0) return;
+
+            let totalSold = 0;
+            let totalNumbers = 0;
+            let totalRevenue = 0;
+            const raffleValue = parseFloat(String(raffles[0].valorRifa).replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
+
+            const sellerPerformance = raffles.map(raffle => {
+                const soldCount = raffle.numeros?.filter(n => n.vendido).length || 0;
+                totalSold += soldCount;
+                totalNumbers += raffle.numeros?.length || 0;
+                return { name: raffle.vendedor, soldCount: soldCount };
+            });
+
+            totalRevenue = totalSold * raffleValue;
+            const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
+            
+            // Renderiza os cards
+            ui.totalRevenue.textContent = `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`;
+            ui.activeSellers.textContent = raffles.length;
+            ui.salesProgress.textContent = `${salesPercentage.toFixed(1)}%`;
+            
+            // Renderiza a barra de progresso
+            ui.progressBar.style.width = `${salesPercentage}%`;
+            
+            // Processa e renderiza o gráfico
+            const topSellers = sellerPerformance.sort((a, b) => b.soldCount - a.soldCount).slice(0, 5);
+            renderTopSellersChart(topSellers);
+        }
+
+        function renderTopSellersChart(topSellers) {
+            const ctx = ui.topSellersChartCanvas.getContext('2d');
+            const labels = topSellers.map(s => s.name);
+            const data = topSellers.map(s => s.soldCount);
+
+            if (topSellersChart) {
+                topSellersChart.destroy();
+            }
+
+            topSellersChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Rifas Vendidas',
+                        data: data,
+                        backgroundColor: '#3B82F6',
+                        borderColor: '#2563EB',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // Gráfico de barras horizontais
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: { display: false }
+                        },
+                        y: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>
