@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estatísticas - RifaACS</title>
+    <style>
+        :root {
+            --primary-color: #3B82F6;
+            --success-color: #10B981;
+            --danger-color: #EF4444;
+            --info-color: #60A5FA;
+            --light-gray: #F3F4F6;
+            --medium-gray: #E5E7EB;
+            --dark-gray: #1F2937;
+            --text-gray: #6B7280;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .header h1 { font-size: 2.25rem; }
+
+        .button {
+            padding: 10px 20px; font-size: 1rem; border-radius: 8px;
+            border: none; cursor: pointer; font-weight: 600;
+            text-decoration: none; display: inline-flex; align-items: center;
+            gap: 8px; background-color: var(--primary-color); color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background-color: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .stat-card h3 { font-size: 1.125rem; color: var(--text-gray); margin: 0 0 8px 0; }
+        .stat-card .value { font-size: 2.5rem; font-weight: 700; color: var(--dark-gray); }
+        .stat-card .progress-bar { background-color: var(--medium-gray); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 16px; }
+        .stat-card .progress-bar-fill { background-color: var(--success-color); height: 100%; width: 0%; border-radius: 4px; transition: width 0.5s ease-out; }
+
+        .seller-stats-section h2 { font-size: 1.875rem; margin-bottom: 24px; border-bottom: 2px solid var(--medium-gray); padding-bottom: 12px; }
+
+        .seller-list {
+            display: grid;
+            gap: 24px;
+        }
+        
+        .seller-card {
+            background-color: white;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: grid;
+            gap: 16px;
+            align-items: center;
+        }
+
+        @media(min-width: 768px) {
+            .seller-card { grid-template-columns: 1fr 2fr; }
+        }
+        
+        .seller-card .info {
+            border-bottom: 1px solid var(--medium-gray);
+            padding-bottom: 16px;
+        }
+         @media(min-width: 768px) {
+            .seller-card .info { border-right: 1px solid var(--medium-gray); border-bottom: 0; padding-bottom: 0; padding-right: 16px;}
+        }
+
+        .seller-card .name { font-size: 1.5rem; font-weight: 600; }
+        .seller-card .email { font-size: 1rem; color: var(--text-gray); }
+        .seller-card .seller-progress { font-size: 1rem; font-weight: 500; margin-top: 12px;}
+        .seller-card .progress-bar { background-color: var(--medium-gray); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+        .seller-card .progress-bar-fill { background-color: var(--info-color); height: 100%; width: 0%; border-radius: 4px; transition: width 0.5s ease-out;}
+        
+        .seller-card .details { display: grid; grid-template-columns: 1fr 1fr; gap: 16px;}
+        .seller-card .detail-item .label { font-size: 1rem; color: var(--text-gray); }
+        .seller-card .detail-item .value { font-size: 1.25rem; font-weight: 600; }
+        
+        #loading { text-align: center; font-size: 1.25rem; color: var(--text-gray); padding: 48px;}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Estatísticas da Campanha</h1>
+            <a href="index.html" class="button">← Voltar ao Painel</a>
+        </div>
+
+        <div id="generalStats" class="stats-grid">
+            <!-- Os cartões de estatísticas gerais serão inseridos aqui -->
+        </div>
+
+        <div class="seller-stats-section">
+            <h2>Desempenho por Vendedor</h2>
+            <div id="sellerList" class="seller-list">
+                <!-- Os cartões de vendedores serão inseridos aqui -->
+            </div>
+        </div>
+
+        <div id="loading">A carregar dados...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
+            authDomain: "rifaacs-69cef.firebaseapp.com",
+            projectId: "rifaacs-69cef",
+            storageBucket: "rifaacs-69cef.appspot.com",
+            messagingSenderId: "568565118428",
+            appId: "1:568565118428:web:cc16277171966ef1208b19",
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const ui = {
+            generalStats: document.getElementById('generalStats'),
+            sellerList: document.getElementById('sellerList'),
+            loading: document.getElementById('loading'),
+        };
+
+        async function loadAndProcessData() {
+            try {
+                ui.loading.style.display = 'block';
+                const querySnapshot = await getDocs(collection(db, "rifas"));
+                const allRaffles = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                if (allRaffles.length === 0) {
+                    ui.loading.textContent = "Nenhum dado de rifa encontrado.";
+                    return;
+                }
+                
+                // Processamento dos dados
+                let grandTotalSold = 0;
+                let grandTotalNumbers = 0;
+                const raffleValue = parseFloat(String(allRaffles[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
+                
+                const sellerPerformance = allRaffles.map(raffle => {
+                    const totalNumbers = raffle.numeros?.length || 0;
+                    const soldNumbers = raffle.numeros?.filter(n => n.vendido) || [];
+                    const soldCount = soldNumbers.length;
+                    const revenue = soldCount * raffleValue;
+                    const progress = totalNumbers > 0 ? (soldCount / totalNumbers) * 100 : 0;
+                    
+                    grandTotalSold += soldCount;
+                    grandTotalNumbers += totalNumbers;
+                    
+                    return {
+                        name: raffle.vendedor,
+                        email: raffle.id,
+                        totalNumbers,
+                        soldCount,
+                        revenue,
+                        progress,
+                    };
+                }).sort((a,b) => b.revenue - a.revenue); // Ordena por quem arrecadou mais
+
+                const grandTotalRevenue = grandTotalSold * raffleValue;
+                const grandTotalProgress = grandTotalNumbers > 0 ? (grandTotalSold / grandTotalNumbers) * 100 : 0;
+
+                renderGeneralStats(grandTotalRevenue, grandTotalSold, grandTotalProgress, allRaffles.length);
+                renderSellerStats(sellerPerformance);
+
+                ui.loading.style.display = 'none';
+
+            } catch (error) {
+                console.error("Erro ao carregar e processar os dados:", error);
+                ui.loading.textContent = "Ocorreu um erro ao carregar os dados.";
+            }
+        }
+        
+        function renderGeneralStats(revenue, sold, progress, sellerCount) {
+             ui.generalStats.innerHTML = `
+                <div class="stat-card">
+                    <h3>Total Arrecadado</h3>
+                    <div class="value">R$ ${revenue.toFixed(2).replace('.', ',')}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Números Vendidos</h3>
+                    <div class="value">${sold}</div>
+                </div>
+                 <div class="stat-card">
+                    <h3>Vendedores Ativos</h3>
+                    <div class="value">${sellerCount}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Progresso Geral</h3>
+                    <div class="value">${progress.toFixed(1)}%</div>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" style="width: ${progress}%;"></div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderSellerStats(sellers) {
+            ui.sellerList.innerHTML = ''; // Limpa a lista
+            sellers.forEach(seller => {
+                const sellerCard = document.createElement('div');
+                sellerCard.className = 'seller-card';
+                sellerCard.innerHTML = `
+                    <div class="info">
+                        <div class="name">${seller.name}</div>
+                        <div class="email">${seller.email}</div>
+                        <div class="seller-progress">${seller.progress.toFixed(1)}% completo</div>
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill" style="width: ${seller.progress}%;"></div>
+                        </div>
+                    </div>
+                    <div class="details">
+                        <div class="detail-item">
+                            <div class="label">Arrecadado</div>
+                            <div class="value">R$ ${seller.revenue.toFixed(2).replace('.', ',')}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="label">Vendas</div>
+                            <div class="value">${seller.soldCount} / ${seller.totalNumbers}</div>
+                        </div>
+                    </div>
+                `;
+                ui.sellerList.appendChild(sellerCard);
+            });
+        }
+
+        // Iniciar o processo ao carregar a página
+        document.addEventListener('DOMContentLoaded', loadAndProcessData);
+    </script>
+</body>
+</html>
