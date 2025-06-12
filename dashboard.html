@@ -388,7 +388,8 @@
             btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
             
             try {
-                const { jsPDF } = window;
+                // CORREÇÃO: Acessa o construtor do objeto jspdf na window
+                const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 
                 // Capa do Relatório
