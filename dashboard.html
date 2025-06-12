@@ -4,10 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Administrador - RifaACS</title>
-    <!-- Bibliotecas carregadas diretamente no head para máxima compatibilidade -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root {
             --primary-color: #3B82F6;
@@ -139,39 +136,9 @@
         .attention-list li:last-child { border-bottom: none; }
         .attention-list .name { font-weight: 500; }
         .attention-list .detail { font-size: 14px; color: var(--text-gray); }
-        .spinner-sm { border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Estilos de Notificação */
-        #notification {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 16px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            color: white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s, top 0.3s;
-            pointer-events: none;
-        }
-        #notification.show {
-            opacity: 1;
-            top: 40px;
-        }
-        #notification.success { background-color: var(--success-color); }
-        #notification.danger { background-color: var(--danger-color); }
     </style>
 </head>
 <body>
-    
-    <!-- Elemento de Notificação -->
-    <div id="notification"></div>
-
     <div class="container">
         <!-- Tela de Login -->
         <div id="authContainer" class="card auth-container">
@@ -221,15 +188,12 @@
                     <div class="content-section">
                         <h2>Ferramentas de Gestão</h2>
                         <div class="nav-grid">
-                             <a href="admin.html" class="nav-card"><h3>📊 Gerir Rifas</h3><p>Visualize vendas, estatísticas e detalhes dos números.</p></a>
+                             <!-- ATUALIZADO: Link para a nova página de estatísticas -->
+                             <a href="estatisticas.html" class="nav-card"><h3>📊 Ver Estatísticas</h3><p>Visualize vendas, ranking de vendedores e detalhes.</p></a>
                              <a href="gerar_rifa.html" class="nav-card"><h3>📄 Gerar Bloco</h3><p>Crie PDFs com blocos de rifa para impressão.</p></a>
                              <a href="canhoto.html" class="nav-card"><h3>🖨️ Imprimir Canhotos</h3><p>Gere os canhotos dos números vendidos para o sorteio.</p></a>
                              <a href="sorteador.html" class="nav-card"><h3>🏆 Realizar Sorteio</h3><p>Sorteie os ganhadores e registe os resultados.</p></a>
                         </div>
-                    </div>
-                    <div class="content-section">
-                        <h2>Relatórios</h2>
-                        <button id="exportReportBtn" class="button info-button">Exportar Relatório Geral (PDF)</button>
                     </div>
                 </div>
                 <div class="right-column" style="display: flex; flex-direction: column; gap: 24px;">
@@ -239,9 +203,7 @@
                     </div>
                     <div class="content-section">
                         <h3>⚠️ Pontos de Atenção</h3>
-                        <ul id="attentionList" class="attention-list">
-                            <!-- A lista será preenchida dinamicamente -->
-                        </ul>
+                        <ul id="attentionList" class="attention-list"></ul>
                     </div>
                 </div>
             </div>
@@ -269,7 +231,6 @@
         const db = getFirestore(app);
 
         const ui = {
-            notification: document.getElementById('notification'),
             authContainer: document.getElementById('authContainer'),
             accessDeniedContainer: document.getElementById('accessDeniedContainer'),
             dashboardPanel: document.getElementById('dashboardPanel'),
@@ -283,25 +244,13 @@
             progressBar: document.getElementById('progressBar'),
             topSellersChartCanvas: document.getElementById('topSellersChart'),
             attentionList: document.getElementById('attentionList'),
-            exportReportBtn: document.getElementById('exportReportBtn'),
         };
         
         let topSellersChart = null;
-        let allRafflesData = []; 
 
         function showScreen(screenName) {
-            ['authContainer', 'accessDeniedContainer', 'dashboardPanel'].forEach(id => {
-                document.getElementById(id)?.classList.add('hidden');
-            });
+            ['authContainer', 'accessDeniedContainer', 'dashboardPanel'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
             document.getElementById(screenName)?.classList.remove('hidden');
-        }
-        
-        function showNotification(message, type = 'danger') {
-            ui.notification.textContent = message;
-            ui.notification.className = `notification show ${type}`;
-            setTimeout(() => {
-                ui.notification.className = 'notification';
-            }, 5000);
         }
 
         onAuthStateChanged(auth, user => {
@@ -318,21 +267,17 @@
             }
         });
 
-        const handleSignOut = () => signOut(auth);
-
         ui.loginBtn.addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()));
-        ui.logoutDeniedBtn.addEventListener('click', handleSignOut);
-        ui.logoutBtn.addEventListener('click', handleSignOut);
-        ui.exportReportBtn.addEventListener('click', generateGeneralReportPDF); // Evento direto
+        ui.logoutDeniedBtn.addEventListener('click', () => signOut(auth));
+        ui.logoutBtn.addEventListener('click', () => signOut(auth));
 
         async function loadDashboardData() {
             try {
                 const querySnapshot = await getDocs(collection(db, "rifas"));
-                allRafflesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const allRafflesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 processAndRenderMetrics(allRafflesData);
             } catch (error) {
                 console.error("Erro ao carregar os dados do painel:", error);
-                showNotification("Falha ao carregar dados do painel.", "danger");
             }
         }
 
@@ -379,123 +324,6 @@
                 li.innerHTML = `<span class="name">${seller.name}</span><span class="detail">${seller.soldCount} de ${seller.total} vendidas</span>`;
                 ui.attentionList.appendChild(li);
             });
-        }
-
-        /**
-         * @function generateGeneralReportPDF
-         * @description Versão com diagnóstico para garantir que os dados existem antes de gerar o PDF.
-         */
-        function generateGeneralReportPDF() {
-            const btn = ui.exportReportBtn;
-            if (btn.disabled) return;
-            btn.disabled = true;
-            btn.innerHTML = '<div class="spinner-sm"></div> A gerar PDF...';
-            
-            console.log("--- INICIANDO GERAÇÃO DE PDF ---");
-            console.log("Dados disponíveis para o relatório:", allRafflesData);
-
-            setTimeout(() => {
-                try {
-                    // 1. VERIFICAÇÃO DAS BIBLIOTECAS
-                    if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || typeof window.jspdf.jsPDF.prototype.autoTable === 'undefined') {
-                        throw new Error("As bibliotecas de PDF não foram inicializadas corretamente. Verifique a consola de erros.");
-                    }
-                    console.log("Bibliotecas PDF verificadas com sucesso.");
-
-                    // 2. VERIFICAÇÃO CRÍTICA DOS DADOS
-                    if (!allRafflesData || allRafflesData.length === 0) {
-                        throw new Error("Não há dados de rifas disponíveis para criar o relatório.");
-                    }
-                     console.log(`Encontrados ${allRafflesData.length} registos de rifa para processar.`);
-
-                    // 3. INICIALIZAÇÃO DO DOCUMENTO
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    const generationDate = new Date();
-                    const fileName = `Relatorio_Rifas_${generationDate.toISOString().slice(0,10)}.pdf`;
-                    let contentAdded = false;
-
-                    // 4. CÁLCULO DAS MÉTRICAS E CONSTRUÇÃO DO PDF
-                    let totalSold = 0, totalNumbers = 0;
-                    const raffleValue = parseFloat(String(allRafflesData[0]?.valorRifa || "0").replace(/[^0-9,-]+/g,"").replace(",", ".")) || 0;
-                    
-                    allRafflesData.forEach(raffle => {
-                        totalSold += raffle.numeros?.filter(n => n.vendido).length || 0;
-                        totalNumbers += raffle.numeros?.length || 0;
-                    });
-
-                    if (isNaN(totalSold)) {
-                        console.error("ERRO: O cálculo do total de rifas vendidas falhou (NaN).");
-                        totalSold = 0; // Prevenção de erros
-                    }
-
-                    const totalRevenue = totalSold * raffleValue;
-                    const salesPercentage = totalNumbers > 0 ? (totalSold / totalNumbers) * 100 : 0;
-                    
-                    const summaryBody = [
-                        ['Total Arrecadado', `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`],
-                        ['Vendedores Ativos', allRafflesData.length.toString()],
-                        ['Total de Números', totalNumbers.toString()],
-                        ['Total Vendidos', totalSold.toString()],
-                        ['Progresso de Vendas', `${salesPercentage.toFixed(1)}%`],
-                    ];
-
-                    console.log("Dados do resumo para a tabela:", summaryBody);
-
-                    // Adiciona o título e a página de resumo
-                    doc.setFontSize(20).setFont('helvetica', 'bold');
-                    doc.text("Relatório Geral da Campanha de Rifas", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
-                    doc.setFontSize(12).setFont('helvetica', 'normal');
-                    doc.text(`Gerado em: ${generationDate.toLocaleString('pt-BR')}`, doc.internal.pageSize.getWidth() / 2, 50, { align: 'center' });
-                    doc.setProperties({ title: fileName });
-                    
-                    doc.addPage();
-                    doc.setFontSize(18).setFont('helvetica', 'bold');
-                    doc.text("Resumo Geral", 14, 22);
-                    doc.autoTable({
-                        startY: 30,
-                        head: [['Métrica', 'Valor']],
-                        body: summaryBody,
-                        theme: 'grid', headStyles: { fillColor: [22, 160, 133] },
-                    });
-                    contentAdded = true;
-
-                    // Adiciona as páginas de detalhes
-                    allRafflesData.forEach(raffle => {
-                        const soldNumbers = raffle.numeros?.filter(n => n.vendido && n.comprador) || [];
-                        if (soldNumbers.length > 0) {
-                            const tableBody = soldNumbers.map(n => [n.numero, n.comprador, n.telefone || 'N/A']);
-                            console.log(`A adicionar tabela para ${raffle.vendedor} com ${soldNumbers.length} registos.`);
-                            doc.addPage();
-                            doc.setFontSize(18).setFont('helvetica', 'bold');
-                            doc.text(`Vendas de: ${raffle.vendedor}`, 14, 22);
-                            doc.autoTable({
-                                startY: 30,
-                                head: [['Número', 'Comprador', 'Telefone']],
-                                body: tableBody,
-                                theme: 'striped', headStyles: { fillColor: [41, 128, 185] },
-                            });
-                            contentAdded = true;
-                        }
-                    });
-
-                    // 5. VERIFICAÇÃO FINAL E SAÍDA
-                    if (!contentAdded) {
-                        throw new Error("Nenhum conteúdo foi adicionado ao relatório, os dados podem estar vazios.");
-                    }
-                    
-                    console.log("Geração do PDF concluída. A abrir em novo separador.");
-                    doc.output('dataurlnewwindow');
-                    showNotification("Relatório gerado com sucesso! Verifique o novo separador.", "success");
-
-                } catch (error) {
-                    console.error("Falha detalhada ao gerar o PDF:", error);
-                    showNotification(`Erro: ${error.message}`, 'danger');
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Exportar Relatório Geral (PDF)';
-                }
-            }, 50);
         }
     </script>
 </body>
