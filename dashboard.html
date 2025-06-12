@@ -8,7 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Biblioteca para PDF (jsPDF) e AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.autotable.min.js"></script>
+    <!-- FIX: Updated jspdf-autotable to a newer, more compatible version -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.autotable.min.js"></script>
     <style>
         :root {
             --primary-color: #3B82F6;
@@ -312,7 +313,7 @@
                 processAndRenderMetrics(allRafflesData);
             } catch (error) {
                 console.error("Error fetching raffles for dashboard:", error);
-                alert("Não foi possível carregar os dados do painel.");
+                // Not using alert for better user experience
             }
         }
 
@@ -393,7 +394,7 @@
             if (btn.disabled) return; 
 
             if (allRafflesData.length === 0) {
-                alert("Não há dados para gerar o relatório.");
+                console.log("No data available to generate a report.");
                 return;
             }
             
@@ -401,9 +402,17 @@
             btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
             
             try {
-                // FIX: Instantiate jsPDF directly from the window.jspdf object.
-                // This ensures we get the constructor that the AutoTable plugin has attached to.
+                // Use the most direct and robust way to instantiate jsPDF
                 const doc = new window.jspdf.jsPDF();
+                
+                // Check if the autoTable plugin is loaded.
+                if (typeof doc.autoTable !== 'function') {
+                    console.error("jsPDF.autoTable is not a function. The plugin might not have loaded correctly.");
+                    // Re-enable the button to allow retries
+                    btn.disabled = false;
+                    btn.innerHTML = 'Exportar Relatório Geral (PDF)';
+                    return; 
+                }
                 
                 // Report Cover
                 doc.setFontSize(22);
@@ -472,7 +481,6 @@
                 doc.save(`Relatorio-Geral-Rifas-${new Date().toISOString().slice(0,10)}.pdf`);
             } catch (error) {
                 console.error("Erro ao gerar PDF:", error);
-                alert(`Ocorreu um erro ao gerar o relatório: ${error.message}`);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = 'Exportar Relatório Geral (PDF)';
