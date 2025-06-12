@@ -410,8 +410,9 @@
                 // Carrega as bibliotecas em sequência, se ainda não estiverem carregadas
                 if (typeof window.jspdf === 'undefined') {
                     showNotification("A carregar bibliotecas do PDF...", "info");
-                    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-                    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.autotable.min.js");
+                    // CORREÇÃO: Mudar para o CDN JSDelivr para maior fiabilidade
+                    await loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js");
+                    await loadScript("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js");
                 }
                 
                 // Uma vez carregadas, executa a função de geração real
@@ -420,8 +421,9 @@
             } catch (error) {
                 console.error("Erro no processo de exportação:", error);
                 showNotification(error.message, 'danger');
-            } finally {
-                // A função `generateGeneralReportPDF` agora é responsável por reativar o botão.
+                 // Reativa o botão em caso de falha no carregamento
+                btn.disabled = false;
+                btn.innerHTML = 'Exportar Relatório Geral (PDF)';
             }
         }
 
