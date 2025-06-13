@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Notas</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bibliotecas externas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.worker.min.js';
+    </script>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <style>
+        :root {
+            --background-light: #f1f5f9; /* slate-100 */
+            --background-dark: #0f172a; /* slate-900 */
+            --card-light: #ffffff;
+            --card-dark: #1e293b; /* slate-800 */
+            --text-light: #0f172a; /* slate-900 */
+            --text-dark: #e2e8f0; /* slate-200 */
+            --text-muted-light: #64748b; /* slate-500 */
+            --text-muted-dark: #94a3b8; /* slate-400 */
+            --border-light: #e2e8f0; /* slate-200 */
+            --border-dark: #334155; /* slate-700 */
+        }
+        html.dark { color-scheme: dark; }
+        body { @apply bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark transition-colors duration-300; font-family: 'Inter', sans-serif; }
+        .card { @apply bg-card-light dark:bg-card-dark p-6 rounded-xl shadow-lg border border-border-light dark:border-border-dark; }
+        .btn { @apply w-full flex items-center justify-center gap-2.5 text-white font-bold py-2.5 px-4 rounded-lg shadow-md transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed; }
+        .btn:not(:disabled):hover { @apply -translate-y-0.5 shadow-lg; }
+        .btn-primary { @apply bg-blue-600 hover:bg-blue-700 focus:ring-blue-500; }
+        .btn-secondary { @apply bg-slate-500 hover:bg-slate-600 focus:ring-slate-400; }
+        .btn-success { @apply bg-green-600 hover:bg-green-700 focus:ring-green-500; }
+        .btn-danger { @apply bg-red-600 hover:bg-red-700 focus:ring-red-500; }
+        .btn-warning { @apply bg-amber-500 hover:bg-amber-600 focus:ring-amber-400; }
+        .btn-purple { @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500; }
+        .btn-icon { @apply bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full p-2 transition-colors hover:bg-slate-300 dark:hover:bg-slate-600; }
+        .file-input { @apply block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-slate-100 dark:file:bg-slate-700 file:text-blue-600 dark:file:text-blue-400 hover:file:bg-slate-200 dark:hover:file:bg-slate-600 cursor-pointer; }
+        .step-card { @apply bg-slate-50 dark:bg-slate-800/80 border border-border-light dark:border-border-dark rounded-lg p-4; }
+        
+        /* Estilos da Tabela */
+        .table-container { @apply overflow-x-auto; }
+        th, td { @apply px-4 py-3 border-b border-border-light text-sm whitespace-nowrap; }
+        thead th { @apply bg-slate-800 dark:bg-slate-900/70 text-white sticky top-0 z-10 text-left font-semibold backdrop-blur-sm; }
+        tbody tr:nth-child(even) { @apply bg-slate-50 dark:bg-slate-800; }
+        tbody tr:hover { @apply bg-slate-100 dark:bg-slate-700/50; }
+
+        /* Animação de Carregamento */
+        .loader { border: 6px solid #e5e7eb; border-top: 6px solid #3b82f6; border-radius: 50%; width: 50px; height: 50px; animation: spin 1.5s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-overlay { @apply fixed inset-0 bg-black/60 flex justify-center items-center z-50 transition-opacity; }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
+
+    <div id="loading-overlay" class="modal-overlay hidden opacity-0"><div class="loader"></div></div>
+
+    <div class="container mx-auto max-w-screen-2xl">
+        <header class="relative text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-text-light">Sistema de Gestão de Notas</h1>
+            <p class="text-text-muted-light dark:text-text-muted-dark mt-2 text-base sm:text-lg">Consolide, analise e exporte notas com uma interface moderna.</p>
+            <div class="absolute top-0 right-0">
+                <button id="theme-toggle" class="btn-icon" aria-label="Alternar tema">
+                    <svg id="theme-icon-light" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Coluna de Controles -->
+            <aside class="lg:col-span-4 xl:col-span-3">
+                <div class="card sticky top-8 space-y-6">
+                    <!-- Passo 1 -->
+                    <div class="step-card">
+                        <h3 class="font-bold text-lg text-text-light dark:text-text-dark mb-3 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 text-sm inline-flex items-center justify-center">1</span>Gerar Planilha Inicial</h3>
+                        <p class="text-sm text-text-muted-light dark:text-text-muted-dark mb-3">Carregue um arquivo XLSX com todas as disciplinas em abas para começar.</p>
+                        <input type="file" id="file-input-initial" class="file-input" accept=".xlsx">
+                        <button id="btn-gerar-planilha" class="btn btn-primary mt-3">Criar Planilha</button>
+                    </div>
+
+                    <!-- Passo 2 -->
+                    <div class="step-card">
+                         <h3 class="font-bold text-lg text-text-light dark:text-text-dark mb-3 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 text-sm inline-flex items-center justify-center">2</span>Atualizar com Novas Notas</h3>
+                        <!-- Ações XLSX -->
+                        <div class="space-y-3">
+                            <label class="font-semibold text-sm text-slate-600 dark:text-slate-300">Atualizar via XLSX:</label>
+                             <input type="file" id="file-input-update-xlsx" class="file-input" accept=".xlsx">
+                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button id="btn-update-xlsx-regular" class="btn btn-purple text-xs" disabled>Regulares</button>
+                                <button id="btn-update-xlsx-recuperacao" class="btn btn-warning text-xs" disabled>Recuperação</button>
+                                <button id="btn-update-xlsx-recursal" class="btn btn-danger text-xs sm:col-span-2" disabled>Prova Recursal</button>
+                             </div>
+                        </div>
+                         <!-- Ações PDF -->
+                        <div class="space-y-3 mt-4 pt-4 border-t border-border-light dark:border-border-dark">
+                            <label class="font-semibold text-sm text-slate-600 dark:text-slate-300">Atualizar via PDF:</label>
+                             <input type="file" id="file-input-update-pdf" class="file-input" accept=".pdf" multiple>
+                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button id="btn-update-pdf-regular" class="btn btn-purple text-xs" disabled>Regulares</button>
+                                <button id="btn-update-pdf-recuperacao" class="btn btn-warning text-xs" disabled>Recuperação</button>
+                                <button id="btn-update-pdf-recursal" class="btn btn-danger text-xs sm:col-span-2" disabled>Prova Recursal</button>
+                            </div>
+                        </div>
+                    </div>
+                     
+                    <!-- Passo 3 -->
+                    <div class="step-card">
+                        <h3 class="font-bold text-lg text-text-light dark:text-text-dark mb-3 flex items-center gap-2"><span class="bg-blue-600 text-white rounded-full w-6 h-6 text-sm inline-flex items-center justify-center">3</span>Relatórios e Exportação</h3>
+                        <div class="space-y-3">
+                            <button id="btn-relatorio-estatistico" class="btn btn-secondary" disabled>Análise Estatística</button>
+                            <button id="btn-classificar-polo" class="btn btn-secondary" disabled>Classificação por Polo (XLSX)</button>
+                            <button id="btn-relatorio-recursal-excel" class="btn btn-secondary" disabled>Relatório Recursal (XLSX)</button>
+                            <button id="btn-exportar-pdf" class="btn btn-success" disabled>Exportar Relatórios (PDF)</button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Coluna de Conteúdo Principal -->
+            <main class="lg:col-span-8 xl:col-span-9">
+                <div class="card min-h-full">
+                    <h2 id="table-title" class="text-2xl font-bold text-text-light dark:text-text-dark mb-4">Visão Geral dos Dados</h2>
+                    <div id="stats-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 text-center"></div>
+                    <div class="table-container rounded-lg border border-border-light dark:border-border-dark">
+                        <div id="table-placeholder" class="text-text-muted-light dark:text-text-muted-dark text-center py-20 px-6 flex flex-col items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            <h3 class="mt-2 text-lg font-medium text-text-light dark:text-text-dark">Nenhum dado carregado</h3>
+                            <p class="mt-1 text-sm">Para começar, crie a planilha inicial no passo 1.</p>
+                        </div>
+                        <table id="data-table" class="min-w-full hidden">
+                            <thead id="table-head"></thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+<script>
+// ===================================================================================
+// ESTADO DA APLICAÇÃO E CONSTANTES GLOBAIS
+// ===================================================================================
+let dfConsolidado = null;
+const POLOS_VALIDOS = ["2º BPM", "3º BPM", "7º BPM", "4º BPM", "5º BPM", "8º BPM", "11º BPM"];
+
+// ===================================================================================
+// CACHE DE ELEMENTOS DO DOM
+// ===================================================================================
+const fileInputs = {
+    initial: document.getElementById('file-input-initial'),
+    updateXlsx: document.getElementById('file-input-update-xlsx'),
+    updatePdf: document.getElementById('file-input-update-pdf')
+};
+const loadingOverlay = document.getElementById('loading-overlay');
+const buttons = {
+    gerar: document.getElementById('btn-gerar-planilha'),
+    updateXlsxRegular: document.getElementById('btn-update-xlsx-regular'),
+    updateXlsxRecuperacao: document.getElementById('btn-update-xlsx-recuperacao'),
+    updateXlsxRecursal: document.getElementById('btn-update-xlsx-recursal'),
+    updatePdfRegular: document.getElementById('btn-update-pdf-regular'),
+    updatePdfRecuperacao: document.getElementById('btn-update-pdf-recuperacao'),
+    updatePdfRecursal: document.getElementById('btn-update-pdf-recursal'),
+    classificarPolo: document.getElementById('btn-classificar-polo'),
+    relatorioRecursalExcel: document.getElementById('btn-relatorio-recursal-excel'),
+    relatorioEstatistico: document.getElementById('btn-relatorio-estatistico'),
+    exportarPDF: document.getElementById('btn-exportar-pdf'),
+};
+const tableContainer = {
+    title: document.getElementById('table-title'),
+    placeholder: document.getElementById('table-placeholder'),
+    table: document.getElementById('data-table'),
+    head: document.getElementById('table-head'),
+    body: document.getElementById('table-body'),
+    stats: document.getElementById('stats-summary'),
+};
+
+// ===================================================================================
+// FUNÇÕES AUXILIARES E DE UI
+// ===================================================================================
+function toggleLoading(show) {
+    loadingOverlay.classList.toggle('hidden', !show);
+    loadingOverlay.classList.toggle('opacity-0', !show);
+}
+
+function updateButtonStates() {
+    const dataAvailable = dfConsolidado && dfConsolidado.length > 0;
+    // Habilita/desabilita botões de relatório e exportação
+    buttons.classificarPolo.disabled = !dataAvailable;
+    buttons.relatorioRecursalExcel.disabled = !dataAvailable;
+    buttons.relatorioEstatistico.disabled = !dataAvailable;
+    buttons.exportarPDF.disabled = !dataAvailable;
+
+    // Habilita/desabilita botões de atualização baseados na seleção de arquivos
+    const xlsxFileSelected = fileInputs.updateXlsx.files.length > 0;
+    buttons.updateXlsxRegular.disabled = !(dataAvailable && xlsxFileSelected);
+    buttons.updateXlsxRecuperacao.disabled = !(dataAvailable && xlsxFileSelected);
+    buttons.updateXlsxRecursal.disabled = !(dataAvailable && xlsxFileSelected);
+    
+    const pdfFileSelected = fileInputs.updatePdf.files.length > 0;
+    buttons.updatePdfRegular.disabled = !(dataAvailable && pdfFileSelected);
+    buttons.updatePdfRecuperacao.disabled = !(dataAvailable && pdfFileSelected);
+    buttons.updatePdfRecursal.disabled = !(dataAvailable && pdfFileSelected);
+}
+
+// ===================================================================================
+// FUNÇÕES DE PROCESSAMENTO DE DADOS
+// ===================================================================================
+
+function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        if (!file) return reject(new Error("Nenhum arquivo selecionado."));
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+                const sheets = {};
+                workbook.SheetNames.forEach(sheetName => {
+                    sheets[sheetName] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                });
+                resolve(sheets);
+            } catch (e) { reject(e); }
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function encontrarColunas(columns) {
+    const lowerCaseColumns = columns.map(c => String(c || '').toLowerCase());
+    return {
+        numero_col: columns[lowerCaseColumns.findIndex(c => c.includes('número'))],
+        nome_col: columns[lowerCaseColumns.findIndex(c => c.includes('guerra'))],
+        nota_col: columns[lowerCaseColumns.findIndex(c => c.includes('nota'))],
+        polo_col: columns[lowerCaseColumns.findIndex(c => c.includes('polo'))],
+    };
+}
+
+function toArrayOfObjects(rawData) {
+    if (!rawData || rawData.length < 2) return [];
+    const headers = rawData[0];
+    return rawData.slice(1).map(row => row.reduce((obj, val, i) => ({ ...obj, [headers[i]]: val }), {}));
+}
+
+function recalcularMediasEPosicoes(data) {
+    if (!data || data.length === 0) return [];
+    const colunasId = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média', 'Prova_Recursal'];
+    const notaCols = Object.keys(data[0] || {}).filter(col => !colunasId.includes(col));
+    
+    data.forEach(aluno => {
+        let soma = 0, count = 0;
+        notaCols.forEach(col => {
+            const nota = parseFloat(aluno[col]);
+            if (!isNaN(nota)) {
+                soma += nota; count++;
+            }
+        });
+        aluno['Média'] = count > 0 ? parseFloat((soma / count).toFixed(2)) : 0;
+    });
+
+    data.sort((a, b) => b['Média'] - a['Média']);
+    data.forEach((aluno, index) => {
+        aluno['Posição Geral'] = (index > 0 && aluno['Média'] === data[index-1]['Média']) ? data[index-1]['Posição Geral'] : index + 1;
+    });
+
+    [...new Set(data.map(a => a['Polo']))].forEach(polo => {
+        const alunosPolo = data.filter(a => a['Polo'] === polo).sort((a, b) => b['Média'] - a['Média']);
+        alunosPolo.forEach((aluno, index) => {
+             aluno['Posição no Polo'] = (index > 0 && aluno['Média'] === alunosPolo[index-1]['Média']) ? alunosPolo[index-1]['Posição no Polo'] : index + 1;
+        });
+    });
+    
+    const disciplinas = Object.keys(data[0]).filter(c => !colunasId.includes(c)).sort();
+    const colunasFinais = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', ...disciplinas, 'Média', 'Prova_Recursal'];
+
+    return data
+        .map(row => colunasFinais.reduce((newRow, col) => ({ ...newRow, [col]: row[col] }), {}))
+        .sort((a, b) => a['Posição Geral'] - b['Posição Geral']);
+}
+
+function renderizarTabela(data, title = "Visão Geral dos Dados") {
+    if (!data || data.length === 0) {
+        tableContainer.table.classList.add('hidden');
+        tableContainer.placeholder.style.display = 'flex';
+        tableContainer.stats.innerHTML = '';
+        return;
+    }
+    
+    tableContainer.title.textContent = title;
+    tableContainer.placeholder.style.display = 'none';
+    tableContainer.table.classList.remove('hidden');
+
+    const headers = Object.keys(data[0]);
+    tableContainer.head.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+    
+    const colunasId = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo'];
+    tableContainer.body.innerHTML = data.map(row => {
+        const rowClass = row['Prova_Recursal'] ? 'font-bold bg-red-100 dark:bg-red-900/50' : '';
+        const cells = headers.map(h => {
+            let value = row[h];
+            if (typeof value === 'number' && !colunasId.includes(h)) {
+                value = value.toFixed(2);
+            }
+            return `<td>${value ?? ''}</td>`;
+        }).join('');
+        return `<tr class="${rowClass}">${cells}</tr>`;
+    }).join('');
+    
+    renderizarResumoEstatistico(data);
+}
+
+function renderizarResumoEstatistico(data) {
+    if (!data || data.length === 0) {
+        tableContainer.stats.innerHTML = '';
+        return;
+    }
+    const mediaGeral = (data.reduce((s, a) => s + (a['Média'] || 0), 0) / data.length).toFixed(2);
+    const maiorNota = Math.max(...data.map(a => a['Média'] || 0)).toFixed(2);
+    const menorNota = Math.min(...data.map(a => a['Média'] || 0)).toFixed(2);
+
+    tableContainer.stats.innerHTML = `
+        <div class="bg-blue-50 dark:bg-slate-800 p-4 rounded-lg border border-blue-200 dark:border-blue-700"><p class="text-sm text-blue-600 dark:text-blue-400 font-semibold">Total de Alunos</p><p class="text-2xl font-bold text-blue-800 dark:text-blue-200">${data.length}</p></div>
+        <div class="bg-green-50 dark:bg-slate-800 p-4 rounded-lg border border-green-200 dark:border-green-700"><p class="text-sm text-green-600 dark:text-green-400 font-semibold">Média Geral</p><p class="text-2xl font-bold text-green-800 dark:text-green-200">${mediaGeral}</p></div>
+        <div class="bg-amber-50 dark:bg-slate-800 p-4 rounded-lg border border-amber-200 dark:border-amber-700"><p class="text-sm text-amber-600 dark:text-amber-400 font-semibold">Maior Média</p><p class="text-2xl font-bold text-amber-800 dark:text-amber-200">${maiorNota}</p></div>
+        <div class="bg-red-50 dark:bg-slate-800 p-4 rounded-lg border border-red-200 dark:border-red-700"><p class="text-sm text-red-600 dark:text-red-400 font-semibold">Menor Média</p><p class="text-2xl font-bold text-red-800 dark:text-red-200">${menorNota}</p></div>`;
+}
+
+// ===================================================================================
+// HANDLERS DE AÇÃO
+// ===================================================================================
+
+async function handleGerarPlanilha() {
+    const file = fileInputs.initial.files[0];
+    if (!file) return Swal.fire('Atenção', 'Por favor, selecione um arquivo XLSX no Passo 1.', 'warning');
+    toggleLoading(true);
+    try {
+        const sheets = await readExcelFile(file);
+        let dados = [];
+        Object.keys(sheets).forEach(aba => {
+            let df = sheets[aba], { numero_col, nome_col, nota_col, polo_col } = {}, headerRowIndex = -1;
+            for (let i = 0; i < Math.min(5, df.length); i++) {
+                const tempCols = encontrarColunas(df[i]);
+                if (tempCols.numero_col && tempCols.nome_col && tempCols.nota_col) {
+                    headerRowIndex = i;
+                    ({ numero_col, nome_col, nota_col, polo_col } = tempCols);
+                    break;
+                }
+            }
+            if (headerRowIndex === -1) return;
+            const tempDados = toArrayOfObjects(df.slice(headerRowIndex));
+            const colsToKeep = { [numero_col]: 'Número', [nome_col]: 'Nome de Guerra', [nota_col]: aba };
+            if (polo_col) colsToKeep[polo_col] = 'Polo';
+            const abaData = tempDados.map(row => Object.keys(colsToKeep).reduce((newRow, oldCol) => ({ ...newRow, [colsToKeep[oldCol]]: row[oldCol] }), {}))
+                                   .filter(row => row['Número'] != null && row['Nome de Guerra'] != null);
+            if(abaData.length > 0) dados.push(abaData);
+        });
+
+        if (dados.length === 0) throw new Error("Nenhum dado válido encontrado nas abas do arquivo.");
+        
+        let dfFinal = dados.reduce((left, right) => {
+            const rightMap = new Map(right.map(item => [`${item['Número']}-${item['Nome de Guerra']}`, item]));
+            return left.map(leftItem => ({ ...leftItem, ...rightMap.get(`${leftItem['Número']}-${leftItem['Nome de Guerra']}`) })).concat([...rightMap.values()]);
+        });
+
+        dfFinal.forEach(row => {
+            if (!row['Polo']) row['Polo'] = 'Desconhecido';
+            row['Prova_Recursal'] = false;
+            Object.keys(row).forEach(col => {
+                if (!['Número', 'Nome de Guerra', 'Polo', 'Prova_Recursal'].includes(col)) {
+                    row[col] = parseFloat(String(row[col]).replace(',', '.')) || null;
+                }
+            });
+        });
+
+        dfConsolidado = recalcularMediasEPosicoes(dfFinal);
+        renderizarTabela(dfConsolidado, "Planilha Consolidada Gerada");
+        Swal.fire({ icon: 'success', title: 'Sucesso!', text: 'Planilha criada. Agora você pode importar mais notas ou gerar relatórios.' });
+    } catch (error) {
+        Swal.fire({ icon: 'error', title: 'Erro!', text: `Ocorreu um erro: ${error.message}` });
+    } finally {
+        toggleLoading(false);
+        updateButtonStates();
+    }
+}
+
+async function handleImportarNotas(fileList, fileType, options) {
+    if (!fileList || fileList.length === 0) return Swal.fire('Atenção', `Selecione um ou mais arquivos ${fileType.toUpperCase()}.`, 'warning');
+    if (!dfConsolidado) return Swal.fire('Erro', 'Crie a planilha consolidada primeiro no Passo 1.', 'error');
+    
+    toggleLoading(true);
+    const tipoProva = options.recuperacao ? "Recuperação" : (options.prova_recursal ? "Prova Recursal" : "Regulares");
+
+    try {
+        let totalNotasAtualizadas = 0;
+        let disciplinasImportadas = new Set();
+        let alunosProvaRecursal = new Set();
+
+        for (const file of fileList) {
+            let notasPorDisciplina;
+            if (fileType === 'xlsx') {
+                notasPorDisciplina = await readExcelFile(file);
+            } else { // pdf
+                const pdfData = await parsePDFData(file);
+                notasPorDisciplina = pdfData.reduce((acc, item) => {
+                    (acc[item.Disciplina] = acc[item.Disciplina] || []).push(item);
+                    return acc;
+                }, {});
+            }
+
+            for (const disciplina in notasPorDisciplina) {
+                if (!disciplina || disciplina === 'undefined') continue;
+                disciplinasImportadas.add(disciplina);
+
+                let dadosDaAba;
+                if (fileType === 'xlsx') {
+                    const df = notasPorDisciplina[disciplina];
+                    let headerRowIndex = -1, cols;
+                    for (let i = 0; i < Math.min(5, df.length); i++) {
+                         cols = encontrarColunas(df[i]);
+                         if (cols.numero_col && cols.nome_col && cols.nota_col) {
+                            headerRowIndex = i; break;
+                         }
+                    }
+                    if(headerRowIndex === -1) continue;
+                    dadosDaAba = toArrayOfObjects(df.slice(headerRowIndex)).map(row => ({
+                        Número: row[cols.numero_col], 'Nome de Guerra': row[cols.nome_col], Nota: row[cols.nota_col]
+                    }));
+                } else {
+                    dadosDaAba = notasPorDisciplina[disciplina];
+                }
+                
+                if (!dfConsolidado[0].hasOwnProperty(disciplina)) {
+                    dfConsolidado.forEach(aluno => aluno[disciplina] = null);
+                }
+
+                dadosDaAba.forEach(alunoNota => {
+                    let notaNova = parseFloat(String(alunoNota.Nota).replace(',', '.'));
+                    if (isNaN(notaNova)) return;
+
+                    if (options.recuperacao) notaNova = Math.min(notaNova, 6.0);
+                    if (options.prova_recursal) notaNova = Math.min(notaNova, 5.0);
+                    
+                    const alunoConsolidado = dfConsolidado.find(a => 
+                        String(a['Número']) === String(alunoNota['Número']) && 
+                        a['Nome de Guerra'] === alunoNota['Nome de Guerra']
+                    );
+
+                    if (alunoConsolidado) {
+                        if (options.prova_recursal) alunosProvaRecursal.add(`${alunoNota['Número']}-${alunoNota['Nome de Guerra']}`);
+                        alunoConsolidado[disciplina] = Math.max(parseFloat(alunoConsolidado[disciplina]) || 0, notaNova);
+                        totalNotasAtualizadas++;
+                    }
+                });
+            }
+        }
+        
+        if (options.prova_recursal) {
+            alunosProvaRecursal.forEach(key => {
+                const [numero, nome] = key.split('-');
+                const aluno = dfConsolidado.find(a => String(a['Número']) == numero && a['Nome de Guerra'] == nome);
+                if (aluno) aluno['Prova_Recursal'] = true;
+            });
+        }
+
+        dfConsolidado = recalcularMediasEPosicoes(dfConsolidado);
+        renderizarTabela(dfConsolidado, `Notas de ${tipoProva} (${fileType.toUpperCase()}) Importadas`);
+        Swal.fire('Sucesso!', `Importação concluída. ${totalNotasAtualizadas} notas (${tipoProva}) atualizadas para: ${[...disciplinasImportadas].join(', ')}.`, 'success');
+    } catch (error) {
+        Swal.fire('Erro', `Erro na importação: ${error.message}`, 'error');
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+async function parsePDFData(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+    const data = [];
+    const headers = ['Polo', 'Número', 'Nome de guerra', 'Disciplina da prova', 'Nota na prova'];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        let pageText = textContent.items.map(item => item.str).join('');
+        
+        const rows = pageText.split('ATIVO').slice(1);
+        rows.forEach(rowText => {
+            const values = rowText.split(/Polo|Pelotão|Número|Matrícula|Nome completo|Nome de guerra|Sexo|Disciplina da prova|Data da prova|Tipo da prova|Chamada da prova|Nota na prova|Resultado/);
+            if (values.length > headers.length) {
+                try {
+                    const nota = parseFloat(values[12]?.replace(',', '.').trim());
+                    if (values[4] && values[6] && values[8] && !isNaN(nota)) {
+                        data.push({
+                            Polo: values[1]?.trim(), Número: values[3]?.trim(), 'Nome de Guerra': values[6]?.trim(),
+                            Disciplina: values[8]?.trim(), Nota: nota
+                        });
+                    }
+                } catch(e) {/* ignore */}
+            }
+        });
+    }
+    return data;
+}
+
+// ===================================================================================
+// LÓGICA DE RELATÓRIOS E EXPORTAÇÃO
+// ===================================================================================
+async function handleClassificarPolo() {
+    const { value: polo } = await Swal.fire({ title: 'Selecione um Polo', input: 'select', inputOptions: POLOS_VALIDOS.reduce((o, p) => ({...o, [p]:p}),{}), inputPlaceholder: 'Selecione...', showCancelButton: true, confirmButtonText: 'Exportar' });
+    if (polo) {
+        let dfPolo = dfConsolidado.filter(a => a['Polo'] === polo).sort((a,b) => a['Posição no Polo'] - b['Posição no Polo']);
+        salvarComoXLSX(dfPolo, `Classificacao_${polo.replace(/\s/g, '_')}.xlsx`);
+    }
+}
+
+function handleRelatorioRecursalExcel() {
+    const dfRecursal = dfConsolidado.filter(a => a['Prova_Recursal'] === true);
+    if (dfRecursal.length === 0) return Swal.fire('Informação', 'Nenhum aluno fez prova recursal.', 'info');
+    salvarComoXLSX(dfRecursal, "Relatório_Prova_Recursal.xlsx");
+}
+
+function handleRelatorioEstatistico() {
+    const mediaGeral = (dfConsolidado.reduce((s, a) => s + a['Média'], 0) / dfConsolidado.length).toFixed(2);
+    let htmlContent = `<div class="text-left space-y-4 text-slate-600 dark:text-slate-300"><p><b>Total de alunos:</b> ${dfConsolidado.length} | <b>Média geral:</b> ${mediaGeral}</p><div class="border-t border-border-light dark:border-border-dark pt-4"><h3 class="text-lg font-bold text-text-light dark:text-text-dark mb-2">Estatísticas por Polo</h3>`;
+    [...new Set(dfConsolidado.map(a => a.Polo))].sort().forEach(polo => {
+        const poloData = dfConsolidado.filter(a => a.Polo === polo);
+        const poloMedia = (poloData.reduce((s, a) => s + a['Média'], 0) / poloData.length).toFixed(2);
+        htmlContent += `<p><b>${polo}:</b> ${poloData.length} alunos (média ${poloMedia})</p>`;
+    });
+    htmlContent += '</div></div>';
+    Swal.fire({ title: 'Relatório Estatístico', html: htmlContent, icon: 'info' });
+}
+
+async function handleExportarPDF() {
+     const { value: choice } = await Swal.fire({
+        title: 'Selecione o Relatório PDF', input: 'select',
+        inputOptions: { 'geral': '🏆 Classificação Geral', 'polo': '🏢 Classificação por Polo', 'recursal': '⚡ Relatório de Prova Recursal' },
+        inputPlaceholder: 'Escolha uma opção', showCancelButton: true
+     });
+    if (choice === 'geral') exportarPDFClassificacaoGeral();
+    if (choice === 'polo') exportarPDFPorPolo();
+    if (choice === 'recursal') exportarPDFProvaRecursal();
+}
+
+// ===================================================================================
+// FUNÇÕES DE GERAÇÃO DE PDF
+// ===================================================================================
+const { jsPDF } = window.jspdf;
+function createPdfBase(title, doc, data, headStyles = { fillColor: [30, 41, 59] }) {
+    doc.setFontSize(18).setTextColor(40).text(title, doc.internal.pageSize.width / 2, 20, { align: 'center' });
+    doc.setFontSize(9).text(`Relatório gerado em: ${new Date().toLocaleString('pt-BR')}`, doc.internal.pageSize.width / 2, 28, { align: 'center' });
+    doc.autoTable({
+        startY: 35, head: [Object.keys(data[0])], body: data.map(row => Object.values(row).map(val => val ?? '')),
+        theme: 'grid', headStyles: { ...headStyles, textColor: [255, 255, 255] },
+        styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle' },
+        alternateRowStyles: { fillColor: [241, 245, 249] },
+        columnStyles: { 'Nome de Guerra': { halign: 'left' } }
+    });
+    return doc;
+}
+function exportarPDFClassificacaoGeral() {
+    const doc = new jsPDF({ orientation: 'l' });
+    const colunas = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média'];
+    const dfPdf = dfConsolidado.map(row => colunas.reduce((obj, col) => ({...obj, [col]: row[col]}), {}));
+    createPdfBase("CLASSIFICAÇÃO GERAL DOS ALUNOS", doc, dfPdf);
+    doc.save(`Classificacao_Geral.pdf`);
+}
+async function exportarPDFPorPolo() {
+    const { value: polo } = await Swal.fire({ title: 'Selecione um Polo', input: 'select', inputOptions: POLOS_VALIDOS.reduce((o,p)=>({...o,[p]:p}),{}), showCancelButton: true });
+    if (polo) {
+        const doc = new jsPDF();
+        const dfPolo = dfConsolidado.filter(a => a.Polo === polo);
+        const colunas = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Média'];
+        const dfPdf = dfPolo.map(row => colunas.reduce((obj, col) => ({...obj, [col]: row[col]}), {}));
+        createPdfBase(`CLASSIFICAÇÃO - POLO ${polo}`, doc, dfPdf);
+        doc.save(`Classificacao_${polo.replace(/\s/g, '_')}.pdf`);
+    }
+}
+function exportarPDFProvaRecursal() {
+    const dfRecursal = dfConsolidado.filter(a => a.Prova_Recursal);
+    if (dfRecursal.length === 0) return Swal.fire('Informação', 'Nenhum aluno em prova recursal.', 'info');
+    const doc = new jsPDF({ orientation: 'l' });
+    const colunas = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média'];
+    const dfPdf = dfRecursal.map(row => colunas.reduce((obj, col) => ({...obj, [col]: row[col]}), {}));
+    createPdfBase("RELATÓRIO DE PROVA RECURSAL", doc, dfPdf, { fillColor: [220, 53, 69] });
+    doc.save(`Relatorio_Prova_Recursal.pdf`);
+}
+
+// ===================================================================================
+// INICIALIZAÇÃO E EVENT LISTENERS
+// ===================================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    // Ações principais
+    buttons.gerar.addEventListener('click', handleGerarPlanilha);
+    buttons.classificarPolo.addEventListener('click', handleClassificarPolo);
+    buttons.relatorioRecursalExcel.addEventListener('click', handleRelatorioRecursalExcel);
+    buttons.relatorioEstatistico.addEventListener('click', handleRelatorioEstatistico);
+    buttons.exportarPDF.addEventListener('click', handleExportarPDF);
+
+    // Ações de atualização
+    buttons.updateXlsxRegular.addEventListener('click', () => handleImportarNotas(fileInputs.updateXlsx.files, 'xlsx', {}));
+    buttons.updateXlsxRecuperacao.addEventListener('click', () => handleImportarNotas(fileInputs.updateXlsx.files, 'xlsx', { recuperacao: true }));
+    buttons.updateXlsxRecursal.addEventListener('click', () => handleImportarNotas(fileInputs.updateXlsx.files, 'xlsx', { prova_recursal: true }));
+    buttons.updatePdfRegular.addEventListener('click', () => handleImportarNotas(fileInputs.updatePdf.files, 'pdf', {}));
+    buttons.updatePdfRecuperacao.addEventListener('click', () => handleImportarNotas(fileInputs.updatePdf.files, 'pdf', { recuperacao: true }));
+    buttons.updatePdfRecursal.addEventListener('click', () => handleImportarNotas(fileInputs.updatePdf.files, 'pdf', { prova_recursal: true }));
+
+    // Listeners para os inputs de arquivo para habilitar/desabilitar botões
+    fileInputs.updateXlsx.addEventListener('change', updateButtonStates);
+    fileInputs.updatePdf.addEventListener('change', updateButtonStates);
+    
+    // Lógica do Modo Escuro
+    const themeToggle = document.getElementById('theme-toggle');
+    const lightIcon = document.getElementById('theme-icon-light');
+    const darkIcon = document.getElementById('theme-icon-dark');
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+        lightIcon.classList.add('hidden');
+        darkIcon.classList.remove('hidden');
+    }
+    themeToggle.addEventListener('click', () => {
+        document.documentElement.classList.toggle('dark');
+        lightIcon.classList.toggle('hidden');
+        darkIcon.classList.toggle('hidden');
+        localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    });
+
+    updateButtonStates();
+});
+</script>
+</body>
+</html>
