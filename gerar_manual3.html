@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gerador de Rifas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Estilos gerais */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F9FAFB;
+            color: #1F2937;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .auth-container, .denied-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .primary-button, .secondary-button {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .primary-button { background: #3B82F6; color: white; }
+        .primary-button:hover:not(:disabled) { background: #2563EB; }
+        .primary-button:disabled { background: #D1D5DB; cursor: not-allowed; }
+        .secondary-button { background: #EF4444; color: white; }
+        .table-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        th {
+            background-color: #F9FAFB;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6B7280;
+            text-transform: uppercase;
+        }
+        td {
+            font-size: 14px;
+            color: #374151;
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        tbody tr:hover {
+            background-color: #F3F4F6;
+        }
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .actions-bar {
+            padding: 20px;
+            text-align: right;
+        }
+        .loading-spinner, .spinner-sm {
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            border-style: solid;
+        }
+        .loading-spinner {
+            border-width: 4px;
+            border-color: #e5e7eb;
+            border-top-color: #3b82f6;
+            width: 40px;
+            height: 40px;
+            margin: 40px auto;
+        }
+        .spinner-sm {
+            border-width: 2px;
+            border-color: rgba(255,255,255,0.3);
+            border-top-color: white;
+            width: 16px;
+            height: 16px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+
+        /* Estilos para o novo Gerador Manual */
+        .manual-generator-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+        .manual-generator-container h2 {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .manual-generator-container p {
+            font-size: 14px;
+            color: #6B7280;
+            margin-bottom: 24px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+        .form-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #D1D5DB;
+            font-size: 14px;
+            background-color: #F9FAFB;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .form-group.full-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="authContainer" class="auth-container">
+        <h1>Painel Administrativo</h1>
+        <p style="margin: 10px 0 20px;">Faça login com sua conta de administrador.</p>
+        <button id="loginBtn" class="primary-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/></svg>
+            Entrar com Google
+        </button>
+    </div>
+
+    <div id="deniedContainer" class="denied-container hidden">
+        <h1>Acesso Negado</h1>
+        <p style="margin: 10px 0 20px;">Você não tem permissão para acessar esta página.</p>
+        <button id="logoutBtnDenied" class="secondary-button">Sair</button>
+    </div>
+
+    <div id="adminPanel" class="container hidden">
+        <div class="header">
+            <h1>Gerador de Rifas</h1>
+            <button id="logoutBtn" class="secondary-button">Sair</button>
+        </div>
+
+        <!-- Gerador Manual -->
+        <div id="manualGenerator" class="manual-generator-container">
+            <h2>Gerador Manual Avulso</h2>
+            <p>Crie um PDF de rifas rapidamente informando os dados abaixo. Não salva no banco de dados.</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="manualSeller">Nome do Vendedor</label>
+                    <input type="text" id="manualSeller" placeholder="Ex: João da Silva">
+                </div>
+                <div class="form-group">
+                    <label for="manualRaffleName">Nome da Rifa</label>
+                    <input type="text" id="manualRaffleName" value="AÇÃO ENTRE AMIGOS ACS">
+                </div>
+                <div class="form-group">
+                    <label for="manualStartNumber">Número Inicial</label>
+                    <input type="number" id="manualStartNumber" placeholder="Ex: 1" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="manualEndNumber">Número Final</label>
+                    <input type="number" id="manualEndNumber" placeholder="Ex: 100" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="manualRaffleValue">Valor da Rifa</label>
+                    <input type="text" id="manualRaffleValue" placeholder="Ex: R$ 5,00">
+                </div>
+                <div class="form-group">
+                    <label for="manualPrizes">Prêmios (separados por | )</label>
+                    <input type="text" id="manualPrizes" value="1º R$ 1000 | 2º R$ 700 | 3º R$ 500">
+                </div>
+                <div class="form-group full-width">
+                    <label for="manualPix">Chave PIX (Opcional)</label>
+                    <input type="text" id="manualPix" placeholder="Deixe em branco para não exibir no PDF">
+                </div>
+            </div>
+            <div class="actions-bar" style="padding: 20px 0 0 0;">
+                <button id="manualGeneratePdfBtn" class="primary-button">Gerar PDF Manual</button>
+            </div>
+        </div>
+
+        <!-- Rifas do Banco de Dados -->
+        <div class="header" style="margin-top: 40px; border-top: 1px solid #E5E7EB; padding-top: 20px;">
+            <h1 style="font-size: 24px;">Rifas Registradas no Sistema</h1>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllCheckbox" class="checkbox"></th>
+                        <th>Vendedor</th>
+                        <th>Nome da Rifa</th>
+                        <th>Números</th>
+                    </tr>
+                </thead>
+                <tbody id="rafflesTableBody">
+                    <!-- Linhas da tabela serão inseridas aqui -->
+                </tbody>
+            </table>
+            <div id="loadingIndicator" class="hidden" style="text-align: center; padding: 40px;">
+                <div class="loading-spinner"></div>
+                <p>Carregando rifas...</p>
+            </div>
+        </div>
+        <div class="actions-bar">
+            <button id="generatePdfBtn" class="primary-button" disabled>Gerar PDF para Selecionados</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIGURAÇÃO ---
+        const ADMIN_EMAIL = "cloudp4@gmail.com";
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
+            authDomain: "rifaacs-69cef.firebaseapp.com",
+            projectId: "rifaacs-69cef",
+            storageBucket: "rifaacs-69cef.appspot.com",
+            messagingSenderId: "568565118428",
+            appId: "1:568565118428:web:cc16277171966ef1208b19",
+            measurementId: "G-GDGLK7436E"
+        };
+
+        // --- VARIÁVEIS GLOBAIS ---
+        let auth, db;
+        let allRafflesData = []; 
+        const ui = {
+            authContainer: document.getElementById('authContainer'),
+            deniedContainer: document.getElementById('deniedContainer'),
+            adminPanel: document.getElementById('adminPanel'),
+            loginBtn: document.getElementById('loginBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            logoutBtnDenied: document.getElementById('logoutBtnDenied'),
+            rafflesTableBody: document.getElementById('rafflesTableBody'),
+            selectAllCheckbox: document.getElementById('selectAllCheckbox'),
+            generatePdfBtn: document.getElementById('generatePdfBtn'),
+            manualGeneratePdfBtn: document.getElementById('manualGeneratePdfBtn'),
+            loadingIndicator: document.getElementById('loadingIndicator')
+        };
+
+        // --- INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+             if (window.location.protocol === 'file:') {
+                document.body.innerHTML = `<div style="padding: 40px; text-align: center; font-family: sans-serif;"><h1>Erro</h1><p>Esta página deve ser executada a partir de um servidor web.</p></div>`;
+                return;
+            }
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setupEventListeners();
+                monitorAuthState();
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                document.body.innerHTML = `<div style="padding: 40px; text-align: center; font-family: sans-serif;"><h1>Erro de Conexão</h1><p>Não foi possível inicializar o Firebase. Verifique a console para mais detalhes.</p></div>`;
+            }
+        });
+
+        // --- AUTENTICAÇÃO E EVENTOS ---
+        function setupEventListeners() {
+            ui.loginBtn.addEventListener('click', signInWithGoogle);
+            ui.logoutBtn.addEventListener('click', handleSignOut);
+            ui.logoutBtnDenied.addEventListener('click', handleSignOut);
+            ui.selectAllCheckbox.addEventListener('change', handleSelectAll);
+            ui.generatePdfBtn.addEventListener('click', generateCombinedPDF);
+            ui.manualGeneratePdfBtn.addEventListener('click', generateManualPDF);
+            ui.rafflesTableBody.addEventListener('change', updateGenerateButtonState);
+        }
+
+        function monitorAuthState() {
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    if (user.email === ADMIN_EMAIL) {
+                        showScreen('adminPanel');
+                        fetchAllRaffles();
+                    } else {
+                        showScreen('deniedContainer');
+                    }
+                } else {
+                    showScreen('authContainer');
+                }
+            });
+        }
+
+        async function signInWithGoogle() {
+            try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+            } catch (error) {
+                console.error("Google Sign-In Error:", error);
+                alert(`Falha no login: ${error.code}`);
+            }
+        }
+
+        async function handleSignOut() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Logout Error:", error);
+            }
+        }
+
+        function showScreen(screenName) {
+            ui.authContainer.classList.add('hidden');
+            ui.deniedContainer.classList.add('hidden');
+            ui.adminPanel.classList.add('hidden');
+            document.getElementById(screenName).classList.remove('hidden');
+        }
+
+        // --- LÓGICA DAS RIFAS REGISTRADAS ---
+        async function fetchAllRaffles() {
+            ui.loadingIndicator.classList.remove('hidden');
+            ui.rafflesTableBody.innerHTML = '';
+            try {
+                const querySnapshot = await getDocs(collection(db, "rifas"));
+                allRafflesData = [];
+                querySnapshot.forEach((doc) => {
+                    allRafflesData.push({ id: doc.id, ...doc.data() });
+                });
+                renderRafflesList();
+            } catch (error) {
+                console.error("Error fetching raffles: ", error);
+                alert("Erro ao carregar as rifas. Verifique as regras de segurança do Firestore.");
+            } finally {
+                ui.loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        function renderRafflesList() {
+            ui.rafflesTableBody.innerHTML = '';
+            if (allRafflesData.length === 0) {
+                 ui.rafflesTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: #6B7280;">Nenhuma rifa encontrada no sistema.</td></tr>';
+                 return;
+            }
+            allRafflesData.forEach(raffle => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="checkbox" class="checkbox seller-checkbox" data-id="${raffle.id}"></td>
+                    <td>${raffle.vendedor || 'Não informado'}</td>
+                    <td>${raffle.nomeRifa || 'Não informada'}</td>
+                    <td>${raffle.numeros?.length || 0}</td>
+                `;
+                ui.rafflesTableBody.appendChild(row);
+            });
+        }
+        
+        function handleSelectAll() {
+            const checkboxes = document.querySelectorAll('.seller-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = ui.selectAllCheckbox.checked;
+            });
+            updateGenerateButtonState();
+        }
+
+        function updateGenerateButtonState() {
+            const anyChecked = document.querySelector('.seller-checkbox:checked');
+            ui.generatePdfBtn.disabled = !anyChecked;
+        }
+        
+        // --- FUNÇÕES DE GERAÇÃO DE PDF ---
+
+        // Função para gerar PDF a partir dos dados do Firestore
+        async function generateCombinedPDF() {
+            const selectedIds = Array.from(document.querySelectorAll('.seller-checkbox:checked'))
+                                     .map(cb => cb.dataset.id);
+
+            if (selectedIds.length === 0) {
+                alert("Por favor, selecione pelo menos uma rifa para gerar o PDF.");
+                return;
+            }
+            
+            const selectedRaffles = allRafflesData.filter(r => selectedIds.includes(r.id));
+            const btn = ui.generatePdfBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
+
+            await generatePdfFromData(selectedRaffles, `blocos-rifas-selecionados.pdf`);
+
+            btn.disabled = false;
+            btn.innerHTML = 'Gerar PDF para Selecionados';
+            updateGenerateButtonState();
+        }
+
+        // Função para gerar PDF a partir do formulário manual
+        async function generateManualPDF() {
+            const seller = document.getElementById('manualSeller').value.trim();
+            const raffleName = document.getElementById('manualRaffleName').value.trim();
+            const startNumStr = document.getElementById('manualStartNumber').value;
+            const endNumStr = document.getElementById('manualEndNumber').value;
+            const raffleValue = document.getElementById('manualRaffleValue').value.trim();
+            const prizes = document.getElementById('manualPrizes').value.trim();
+            const pixKey = document.getElementById('manualPix').value.trim();
+
+            if (!seller || !raffleName || !startNumStr || !endNumStr || !raffleValue || !prizes) {
+                alert("Por favor, preencha todos os campos obrigatórios (exceto PIX).");
+                return;
+            }
+
+            const startNum = parseInt(startNumStr, 10);
+            const endNum = parseInt(endNumStr, 10);
+
+            if (isNaN(startNum) || isNaN(endNum) || startNum < 0 || endNum < startNum) {
+                alert("O intervalo de números é inválido. Verifique se o número inicial é menor que o final.");
+                return;
+            }
+
+            const manualConfig = {
+                vendedor: seller,
+                nomeRifa: raffleName,
+                valorRifa: raffleValue,
+                premios: prizes.split('|').map(p => p.trim()), // Separador agora é '|'
+                pix: pixKey,
+                numeros: []
+            };
+
+            for (let i = startNum; i <= endNum; i++) {
+                manualConfig.numeros.push({ numero: i });
+            }
+
+            const btn = ui.manualGeneratePdfBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
+
+            const fileName = `Rifa_${seller.replace(/\s+/g, '_')}_${startNum}-${endNum}.pdf`;
+            await generatePdfFromData([manualConfig], fileName);
+            
+            btn.disabled = false;
+            btn.innerHTML = 'Gerar PDF Manual';
+        }
+        
+        // Função central para criar o PDF
+        async function generatePdfFromData(rafflesToPrint, fileName) {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const logoUrl = 'https://cloudp4bbs.github.io/logo.png';
+            let logoImage = null;
+            try {
+                const response = await fetch(logoUrl);
+                const blob = await response.blob();
+                logoImage = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = e => reject(e);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.warn("Não foi possível carregar a imagem do logo. O PDF será gerado sem ele.");
+            }
+
+            try {
+                let firstPage = true;
+                for (const raffleConfig of rafflesToPrint) {
+                    const rifas = (raffleConfig.numeros || []).sort((a,b) => a.numero - b.numero);
+                    const rifasPorPagina = 5;
+                    const margem = 15;
+                    const pageW = pdf.internal.pageSize.getWidth();
+                    const larguraTotalUtil = pageW - 2 * margem;
+                    const alturaTotalUtil = pdf.internal.pageSize.getHeight() - 2 * margem;
+                    const alturaRifa = alturaTotalUtil / rifasPorPagina;
+                    const larguraDestacavel = 50;
+
+                    for (let i = 0; i < rifas.length; i++) {
+                        if (i % rifasPorPagina === 0) {
+                            if (!firstPage) {
+                                pdf.addPage();
+                            }
+                            firstPage = false;
+                        }
+                        
+                        const rifaAtual = rifas[i];
+                        const idxNaPagina = i % rifasPorPagina;
+                        const posX = margem;
+                        const posY = margem + (idxNaPagina * alturaRifa);
+
+                        drawSingleRaffle(pdf, posX, posY, larguraTotalUtil, alturaRifa, larguraDestacavel, rifaAtual, raffleConfig, logoImage);
+                    }
+                }
+                
+                pdf.save(fileName);
+
+            } catch (error) {
+                console.error("Erro ao gerar PDF das rifas:", error);
+                alert("Ocorreu um erro ao gerar o PDF das rifas.");
+            }
+        }
+        
+        // Função para desenhar uma única rifa no PDF (CORRIGIDA)
+        function drawSingleRaffle(pdf, posX, posY, larguraTotal, alturaRifa, larguraDestacavel, rifaData, config, logoImage) {
+            const larguraRifa = larguraTotal - larguraDestacavel;
+            
+            // Desenha os retângulos e a linha pontilhada
+            pdf.setLineWidth(0.2);
+            pdf.setDrawColor(0, 0, 0); 
+            pdf.setLineDashPattern([], 0);
+            pdf.rect(posX, posY, larguraDestacavel, alturaRifa, 'D'); // Canhoto
+            pdf.rect(posX + larguraDestacavel, posY, larguraRifa, alturaRifa, 'D'); // Corpo principal
+            pdf.setLineDashPattern([1, 1], 0);
+            pdf.line(posX + larguraDestacavel, posY, posX + larguraDestacavel, posY + alturaRifa);
+            pdf.setLineDashPattern([], 0);
+
+            // --- Canhoto (Parte destacável) ---
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(12);
+            pdf.setTextColor(0, 0, 0);
+            const numeroStr = `Nº ${String(rifaData.numero).padStart(5, '0')}`;
+            pdf.text(numeroStr, posX + larguraDestacavel - 3, posY + 6, { align: 'right' });
+            
+            const yNome = posY + alturaRifa - 20;
+            const yCelular = posY + alturaRifa - 10;
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(9);
+
+            if (rifaData.vendido && rifaData.comprador) {
+                pdf.text("Nome:", posX + 3, yNome);
+                pdf.setFont("helvetica", "bold");
+                pdf.text(rifaData.comprador, posX + 13, yNome, {maxWidth: larguraDestacavel - 16});
+                pdf.setFont("helvetica", "normal");
+                pdf.text("Celular:", posX + 3, yCelular);
+                pdf.setFont("helvetica", "bold");
+                pdf.text(rifaData.telefone || '', posX + 15, yCelular, {maxWidth: larguraDestacavel - 18});
+            } else {
+                pdf.text("Nome:", posX + 3, yNome);
+                pdf.line(posX + 12, yNome + 1, posX + larguraDestacavel - 3, yNome + 1);
+                pdf.text("Celular:", posX + 3, yCelular);
+                pdf.line(posX + 15, yCelular + 1, posX + larguraDestacavel - 3, yCelular + 1);
+            }
+            
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(7);
+            pdf.text(`Resp.: ${config.vendedor}`, posX + larguraDestacavel / 2, posY + alturaRifa - 4, { align: 'center' });
+
+            // --- Corpo Principal da Rifa ---
+            const infoX = posX + larguraDestacavel + 5;
+            const logoX = infoX;
+            const logoY = posY + alturaRifa - 35; 
+            const logoW = 20;
+            const logoH = 30; 
+            const textoX = logoImage ? logoX + logoW + 5 : infoX;
+            const availableWidth = larguraRifa - (textoX - (posX + larguraDestacavel)) - 5;
+
+            if (logoImage) {
+                 try {
+                    pdf.addImage(logoImage, 'PNG', logoX, logoY, logoW, logoH, '', 'FAST');
+                 } catch(e){ console.warn("Falha ao adicionar imagem no PDF", e); }
+            }
+            
+            let currentTextY = posY + 6;
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(13);
+            pdf.text(config.nomeRifa || "AÇÃO ENTRE AMIGOS ACS", textoX, currentTextY, { maxWidth: availableWidth });
+            
+            currentTextY += 6;
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(11);
+            pdf.text(`Valor: ${config.valorRifa || 'N/A'}`, textoX, currentTextY);
+            
+            // --- Prêmios com quebra de linha automática ---
+            currentTextY += 5;
+            const premiosStr = `Prêmios: ${(config.premios || []).join(' | ')}`;
+            const prizeLines = pdf.splitTextToSize(premiosStr, availableWidth);
+            pdf.text(prizeLines, textoX, currentTextY);
+            
+            // Calcula a altura do texto dos prêmios para posicionar o PIX corretamente
+            const lineHeight = pdf.getLineHeight("px") * 0.264583; // Converte para mm
+            currentTextY += prizeLines.length * lineHeight + 1;
+
+            // --- LÓGICA DO PIX (só exibe se preenchido) ---
+            if (config.pix && config.pix.trim() !== "") {
+                const pixStr = `PIX: ${config.pix}`;
+                pdf.text(pixStr, textoX, currentTextY, { maxWidth: availableWidth });
+            }
+        }
+    </script>
+</body>
+</html>
+
