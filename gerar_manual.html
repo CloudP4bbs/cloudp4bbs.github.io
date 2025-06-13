@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gerador de Rifas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #F9FAFB;
+            color: #1F2937;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .auth-container, .denied-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .primary-button, .secondary-button {
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .primary-button { background: #3B82F6; color: white; }
+        .primary-button:hover:not(:disabled) { background: #2563EB; }
+        .primary-button:disabled { background: #D1D5DB; cursor: not-allowed; }
+        .secondary-button { background: #EF4444; color: white; }
+        .table-container, .manual-generator-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .manual-generator-container {
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+        .manual-generator-container h2 {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+         .manual-generator-container p {
+            font-size: 14px;
+            color: #6B7280;
+            margin-bottom: 24px;
+        }
+        .form-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        .form-group-button {
+            flex-shrink: 0;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .input-field {
+            width: 100%;
+            border: 1px solid #D1D5DB;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th, td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        th {
+            background-color: #F9FAFB;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6B7280;
+            text-transform: uppercase;
+        }
+        td {
+            font-size: 14px;
+            color: #374151;
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        tbody tr:hover {
+            background-color: #F3F4F6;
+        }
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .actions-bar {
+            padding: 20px;
+            text-align: right;
+        }
+        .loading-spinner, .spinner-sm {
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            border-style: solid;
+        }
+        .loading-spinner {
+            border-width: 4px;
+            border-color: #e5e7eb;
+            border-top-color: #3b82f6;
+            width: 40px;
+            height: 40px;
+            margin: 40px auto;
+        }
+        .spinner-sm {
+            border-width: 2px;
+            border-color: rgba(255,255,255,0.3);
+            border-top-color: white;
+            width: 16px;
+            height: 16px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="authContainer" class="auth-container">
+        <h1>Painel Administrativo</h1>
+        <p style="margin: 10px 0 20px;">Faça login com sua conta de administrador.</p>
+        <button id="loginBtn" class="primary-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-.764h-.003a3.702 3.702 0 0 0 1.599-2.431H8v-3.08h7.545z"/></svg>
+            Entrar com Google
+        </button>
+    </div>
+
+    <div id="deniedContainer" class="denied-container hidden">
+        <h1>Acesso Negado</h1>
+        <p style="margin: 10px 0 20px;">Você não tem permissão para acessar esta página.</p>
+        <button id="logoutBtnDenied" class="secondary-button">Sair</button>
+    </div>
+
+    <div id="adminPanel" class="container hidden">
+        <div class="header">
+            <h1>Painel de Rifas</h1>
+            <button id="logoutBtn" class="secondary-button">Sair</button>
+        </div>
+
+        <!-- NEW: Manual Generator Section -->
+        <div class="manual-generator-container">
+            <h2>Gerador Manual</h2>
+            <p>Crie um bloco de rifas rapidamente sem salvar os dados.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="manualVendedorInput">Nome do Vendedor</label>
+                    <input type="text" id="manualVendedorInput" class="input-field" placeholder="Ex: João Silva">
+                </div>
+                 <div class="form-group">
+                    <label for="manualInicioInput">Número Inicial</label>
+                    <input type="number" id="manualInicioInput" class="input-field" placeholder="Ex: 1">
+                </div>
+                 <div class="form-group">
+                    <label for="manualFimInput">Número Final</label>
+                    <input type="number" id="manualFimInput" class="input-field" placeholder="Ex: 100">
+                </div>
+                <div class="form-group-button">
+                     <button id="generateManualPdfBtn" class="primary-button">Gerar PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="header">
+            <h1>Rifas Registradas</h1>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllCheckbox" class="checkbox"></th>
+                        <th>Vendedor</th>
+                        <th>Nome da Rifa</th>
+                        <th>Números</th>
+                    </tr>
+                </thead>
+                <tbody id="rafflesTableBody">
+                    <!-- Rows will be inserted here -->
+                </tbody>
+            </table>
+            <div id="loadingIndicator" class="hidden" style="text-align: center; padding: 40px;">
+                <div class="loading-spinner"></div>
+                <p>Carregando rifas...</p>
+            </div>
+        </div>
+        <div class="actions-bar">
+            <button id="generatePdfBtn" class="primary-button" disabled>Gerar PDF para Selecionados</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- CONFIG ---
+        const ADMIN_EMAIL = "cloudp4@gmail.com";
+        const LOGO_URL = 'https://cloudp4bbs.github.io/logo.png';
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHyvrQPh221bMM1s7HvO9n7LrfxRF-UYA",
+            authDomain: "rifaacs-69cef.firebaseapp.com",
+            projectId: "rifaacs-69cef",
+            storageBucket: "rifaacs-69cef.appspot.com",
+            messagingSenderId: "568565118428",
+            appId: "1:568565118428:web:cc16277171966ef1208b19",
+            measurementId: "G-GDGLK7436E"
+        };
+
+        // --- GLOBAL VARS ---
+        let auth, db;
+        let allRafflesData = [];
+        const ui = {
+            authContainer: document.getElementById('authContainer'),
+            deniedContainer: document.getElementById('deniedContainer'),
+            adminPanel: document.getElementById('adminPanel'),
+            loginBtn: document.getElementById('loginBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
+            logoutBtnDenied: document.getElementById('logoutBtnDenied'),
+            rafflesTableBody: document.getElementById('rafflesTableBody'),
+            selectAllCheckbox: document.getElementById('selectAllCheckbox'),
+            generatePdfBtn: document.getElementById('generatePdfBtn'),
+            loadingIndicator: document.getElementById('loadingIndicator'),
+            // Manual Generator UI
+            manualVendedorInput: document.getElementById('manualVendedorInput'),
+            manualInicioInput: document.getElementById('manualInicioInput'),
+            manualFimInput: document.getElementById('manualFimInput'),
+            generateManualPdfBtn: document.getElementById('generateManualPdfBtn'),
+        };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                setupEventListeners();
+                monitorAuthState();
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+                document.body.innerHTML = `<div style="padding: 40px; text-align: center;"><h1>Erro de Conexão</h1></div>`;
+            }
+        });
+
+        // --- AUTH ---
+        function setupEventListeners() {
+            ui.loginBtn.addEventListener('click', signInWithGoogle);
+            ui.logoutBtn.addEventListener('click', handleSignOut);
+            ui.logoutBtnDenied.addEventListener('click', handleSignOut);
+            // Saved raffles listeners
+            ui.selectAllCheckbox.addEventListener('change', handleSelectAll);
+            ui.generatePdfBtn.addEventListener('click', generateCombinedPDF);
+            ui.rafflesTableBody.addEventListener('change', updateGenerateButtonState);
+            // Manual generator listener
+            ui.generateManualPdfBtn.addEventListener('click', generateManualPDF);
+        }
+
+        function monitorAuthState() {
+            onAuthStateChanged(auth, user => {
+                if (user) {
+                    if (user.email === ADMIN_EMAIL) {
+                        showScreen('adminPanel');
+                        fetchAllRaffles();
+                    } else {
+                        showScreen('deniedContainer');
+                    }
+                } else {
+                    showScreen('authContainer');
+                }
+            });
+        }
+
+        async function signInWithGoogle() {
+            try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (error) { console.error("Google Sign-In Error:", error); }
+        }
+
+        async function handleSignOut() {
+            try { await signOut(auth); } catch (error) { console.error("Logout Error:", error); }
+        }
+
+        function showScreen(screenName) {
+            ['authContainer', 'deniedContainer', 'adminPanel'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenName).classList.remove('hidden');
+        }
+
+        // --- SAVED RAFFLES LOGIC ---
+        async function fetchAllRaffles() {
+            ui.loadingIndicator.classList.remove('hidden');
+            try {
+                const querySnapshot = await getDocs(collection(db, "rifas"));
+                allRafflesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderRafflesList();
+            } catch (error) {
+                console.error("Error fetching raffles: ", error);
+                alert("Erro ao carregar as rifas.");
+            } finally {
+                ui.loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        function renderRafflesList() {
+            ui.rafflesTableBody.innerHTML = '';
+            if (allRafflesData.length === 0) {
+                 ui.rafflesTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: #6B7280;">Nenhuma rifa encontrada.</td></tr>';
+                 return;
+            }
+            allRafflesData.forEach(raffle => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="checkbox" class="checkbox seller-checkbox" data-id="${raffle.id}"></td>
+                    <td>${raffle.vendedor || 'N/A'}</td>
+                    <td>${raffle.nomeRifa || 'N/A'}</td>
+                    <td>${raffle.numeros?.length || 0}</td>
+                `;
+                ui.rafflesTableBody.appendChild(row);
+            });
+        }
+        
+        function handleSelectAll() {
+            document.querySelectorAll('.seller-checkbox').forEach(cb => cb.checked = ui.selectAllCheckbox.checked);
+            updateGenerateButtonState();
+        }
+
+        function updateGenerateButtonState() {
+            ui.generatePdfBtn.disabled = !document.querySelector('.seller-checkbox:checked');
+        }
+
+        // --- MANUAL PDF GENERATOR ---
+        async function generateManualPDF() {
+            const vendedor = ui.manualVendedorInput.value.trim();
+            const inicio = parseInt(ui.manualInicioInput.value, 10);
+            const fim = parseInt(ui.manualFimInput.value, 10);
+
+            if (!vendedor || isNaN(inicio) || isNaN(fim)) {
+                alert("Por favor, preencha o nome do vendedor e os números inicial e final.");
+                return;
+            }
+            if (inicio > fim) {
+                alert("O número inicial não pode ser maior que o final.");
+                return;
+            }
+            if ((fim - inicio) > 5000) {
+                 alert("O intervalo é muito grande. Por favor, gere no máximo 5000 números por vez.");
+                 return;
+            }
+
+            const btn = ui.generateManualPdfBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
+
+            // Create a mock configuration with default values
+            const mockConfig = {
+                vendedor: vendedor,
+                nomeRifa: "AÇÃO ENTRE AMIGOS ACS",
+                valorRifa: "R$ 10,00",
+                premios: ["1º R$ 1000", "2º R$ 700", "3º R$ 500"],
+                pix: "Chave PIX padrão"
+            };
+
+            const mockRaffles = [];
+            for (let i = inicio; i <= fim; i++) {
+                mockRaffles.push({ numero: i, vendido: false, comprador: '', telefone: '' });
+            }
+
+            try {
+                await generatePDF([mockConfig], [mockRaffles], `bloco-manual-${vendedor.replace(/\s/g, '_')}`);
+            } catch(error) {
+                console.error("Erro no Gerador Manual: ", error);
+                alert("Ocorreu um erro ao gerar o PDF manual.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Gerar PDF';
+            }
+        }
+
+        // --- SAVED PDF GENERATOR ---
+        async function generateCombinedPDF() {
+            const selectedIds = Array.from(document.querySelectorAll('.seller-checkbox:checked')).map(cb => cb.dataset.id);
+            if (selectedIds.length === 0) return;
+
+            const selectedRafflesData = allRafflesData.filter(r => selectedIds.includes(r.id));
+            const selectedRafflesNumbers = selectedRafflesData.map(r => (r.numeros || []).sort((a,b) => a.numero - b.numero));
+
+            const btn = ui.generatePdfBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner-sm"></div> Gerando...';
+
+            try {
+                await generatePDF(selectedRafflesData, selectedRafflesNumbers, 'blocos-rifas-selecionados');
+            } catch (error) {
+                console.error("Erro ao gerar PDF combinado:", error);
+                alert("Ocorreu um erro ao gerar o PDF combinado.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Gerar PDF para Selecionados';
+                updateGenerateButtonState();
+            }
+        }
+        
+        // --- CORE PDF GENERATION LOGIC ---
+        async function generatePDF(configs, rafflesLists, baseFileName) {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            let logoImage = null;
+            try {
+                const response = await fetch(LOGO_URL);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    logoImage = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.onerror = e => reject(e);
+                        reader.readAsDataURL(blob);
+                    });
+                }
+            } catch (e) {
+                console.warn("Logo não carregado. O PDF será gerado sem ele.");
+            }
+
+            let isFirstPageOfAll = true;
+            for (let i = 0; i < configs.length; i++) {
+                const config = configs[i];
+                const raffles = rafflesLists[i];
+                const rifasPorPagina = 5;
+                const margem = 15;
+                const pageW = pdf.internal.pageSize.getWidth();
+                const alturaRifa = (pdf.internal.pageSize.getHeight() - 2 * margem) / rifasPorPagina;
+                const larguraTotalUtil = pageW - 2 * margem;
+                const larguraDestacavel = 50;
+
+                for (let j = 0; j < raffles.length; j++) {
+                    const rifaAtual = raffles[j];
+                    if (j % rifasPorPagina === 0) {
+                        if (!isFirstPageOfAll) pdf.addPage();
+                        isFirstPageOfAll = false;
+                    }
+                    
+                    const idxNaPagina = j % rifasPorPagina;
+                    const posX = margem, posY = margem + (idxNaPagina * alturaRifa);
+                    drawSingleRaffle(pdf, posX, posY, larguraTotalUtil, alturaRifa, larguraDestacavel, rifaAtual, config, logoImage);
+                }
+            }
+            pdf.save(`${baseFileName}-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+        }
+
+        // --- PDF DRAWING HELPER ---
+        function drawSingleRaffle(pdf, posX, posY, larguraTotal, alturaRifa, larguraDestacavel, rifaData, config, logoImage) {
+            const larguraRifa = larguraTotal - larguraDestacavel;
+            
+            pdf.setLineWidth(0.2);
+            pdf.setDrawColor(0, 0, 0); 
+            pdf.setLineDashPattern([], 0);
+            
+            // Canhoto
+            pdf.rect(posX, posY, larguraDestacavel, alturaRifa, 'D');
+            
+            pdf.setFont("helvetica", "bold").setFontSize(12).setTextColor(0, 0, 0);
+            const numeroStr = `Nº ${String(rifaData.numero).padStart(5, '0')}`;
+            pdf.text(numeroStr, posX + larguraDestacavel - 3, posY + 6, { align: 'right' });
+            
+            const yNome = posY + alturaRifa - 20;
+            const yCelular = posY + alturaRifa - 10;
+            
+            pdf.setFont("helvetica", "normal").setFontSize(9);
+            if (rifaData.vendido && rifaData.comprador) {
+                pdf.text("Nome:", posX + 3, yNome);
+                pdf.setFont("helvetica", "bold");
+                pdf.text(rifaData.comprador, posX + 13, yNome, {maxWidth: larguraDestacavel - 16});
+                pdf.setFont("helvetica", "normal");
+                pdf.text("Celular:", posX + 3, yCelular);
+                pdf.setFont("helvetica", "bold");
+                pdf.text(rifaData.telefone || '', posX + 15, yCelular, {maxWidth: larguraDestacavel - 18});
+            } else {
+                pdf.text("Nome:", posX + 3, yNome);
+                pdf.line(posX + 12, yNome - 0.5, posX + larguraDestacavel - 3, yNome - 0.5);
+                pdf.text("Celular:", posX + 3, yCelular);
+                pdf.line(posX + 15, yCelular - 0.5, posX + larguraDestacavel - 3, yCelular - 0.5);
+            }
+            
+            pdf.setFont("helvetica", "normal").setFontSize(7);
+            pdf.text(`Resp.: ${config.vendedor}`, posX + larguraDestacavel / 2, posY + alturaRifa - 4, { align: 'center' });
+
+            // Linha pontilhada
+            pdf.setLineDashPattern([1, 1], 0);
+            pdf.line(posX + larguraDestacavel, posY, posX + larguraDestacavel, posY + alturaRifa);
+            pdf.setLineDashPattern([], 0);
+
+            // Parte principal
+            pdf.rect(posX + larguraDestacavel, posY, larguraRifa, alturaRifa, 'D');
+            const infoX = posX + larguraDestacavel + 5;
+            const logoX = infoX;
+            const logoY = posY + alturaRifa - 35; 
+            const logoW = 20, logoH = 30; 
+            const textoX = logoImage ? logoX + logoW + 5 : infoX;
+
+            if (logoImage) {
+                 try { pdf.addImage(logoImage, 'PNG', logoX, logoY, logoW, logoH, '', 'FAST'); } 
+                 catch(e){ console.warn("Falha ao adicionar imagem no PDF", e); }
+            }
+            
+            let currentTextY = posY + 10;
+            pdf.setFont("helvetica", "bold").setFontSize(13);
+            pdf.text(config.nomeRifa || "AÇÃO ENTRE AMIGOS", textoX, currentTextY, {maxWidth: larguraRifa - (textoX - infoX) - 5});
+            
+            currentTextY += 7;
+            pdf.setFont("helvetica", "normal").setFontSize(11);
+            pdf.text(`Valor: ${config.valorRifa || 'N/A'}`, textoX, currentTextY);
+            
+            currentTextY += 5;
+            const premiosStr = `Prêmios: ${(config.premios || []).join(' | ')}`;
+            pdf.text(premiosStr, textoX, currentTextY, { maxWidth: larguraRifa - (textoX - infoX) - 15 });
+            
+            currentTextY += 5;
+            pdf.text(`PIX: ${config.pix || 'N/A'}`, textoX, currentTextY, { maxWidth: larguraRifa - (textoX - infoX) - 15 });
+            
+            currentTextY += 5;
+            pdf.text("Sorteio: 02/07/2025", textoX, currentTextY); // Data de sorteio fixa como no original
+
+            pdf.setFont("helvetica", "normal").setFontSize(9);
+            pdf.text(`Responsável: ${config.vendedor}`, textoX, posY + alturaRifa - 6);
+            
+            pdf.setFont("helvetica", "bold").setFontSize(16);
+            pdf.text(numeroStr, posX + larguraTotal - 5, posY + alturaRifa - 8, { align: 'right' });
+        }
+    </script>
+</body>
+</html>
+
