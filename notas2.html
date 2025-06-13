@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Notas</title>
+    <!-- Tailwind CSS para estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (xlsx) para manipulação de arquivos Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- jsPDF para criação de PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- jsPDF-AutoTable plugin para criar tabelas em PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- Chart.js para criar gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SweetAlert2 para pop-ups e modais -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- PDF.js para leitura e análise de arquivos PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.min.js"></script>
+    <script>
+      // Define o caminho para o "worker" do PDF.js, essencial para o seu funcionamento.
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.worker.min.js';
+    </script>
+
+
+    <style>
+        /* Estilos personalizados */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .btn {
+            @apply text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
+        }
+        .btn-primary { @apply bg-blue-600 hover:bg-blue-700 focus:ring-blue-500; }
+        .btn-secondary { @apply bg-gray-500 hover:bg-gray-600 focus:ring-gray-400; }
+        .btn-success { @apply bg-green-600 hover:bg-green-700 focus:ring-green-500; }
+        .btn-danger { @apply bg-red-600 hover:bg-red-700 focus:ring-red-500; }
+        .btn-warning { @apply bg-yellow-500 hover:bg-yellow-600 focus:ring-yellow-400; }
+        .btn-info { @apply bg-cyan-500 hover:bg-cyan-600 focus:ring-cyan-400; }
+        .btn-purple { @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500; }
+
+        .card {
+            @apply bg-white p-6 rounded-xl shadow-lg;
+        }
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        th, td {
+            @apply px-4 py-2 border border-gray-300;
+        }
+        thead th {
+            @apply bg-gray-800 text-white sticky top-0;
+        }
+        /* Efeito de carregamento */
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 8px solid #3498db;
+            width: 60px;
+            height: 60px;
+            -webkit-animation: spin 2s linear infinite; /* Safari */
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .modal {
+            @apply fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50;
+        }
+        .file-input-label {
+             @apply block text-sm font-medium text-gray-700 mb-2;
+        }
+        .file-input {
+            @apply block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer;
+        }
+    </style>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="loading-overlay" class="modal hidden">
+        <div class="loader"></div>
+    </div>
+
+    <div class="container mx-auto max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800">Sistema de Gestão de Notas</h1>
+            <p class="text-gray-600 mt-2">Uma ferramenta web para consolidar, analisar e exportar notas de alunos.</p>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Coluna de Controles -->
+            <aside class="md:col-span-1">
+                <div class="card space-y-6">
+                    <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">Menu Principal</h2>
+
+                    <!-- Seção de Geração Inicial (XLSX) -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold text-gray-600">Planilha Inicial (via XLSX)</h3>
+                        <div>
+                            <label for="file-input-xlsx" class="file-input-label">1. Selecione o arquivo base:</label>
+                            <input type="file" id="file-input-xlsx" class="file-input" accept=".xlsx">
+                        </div>
+                        <button id="btn-gerar-planilha" class="btn btn-primary w-full">Criar Planilha Consolidada</button>
+                    </div>
+
+                    <!-- Seção de Importação de PDF -->
+                    <div class="space-y-4 pt-4 border-t">
+                        <h3 class="text-lg font-semibold text-gray-600">Importar Notas (via PDF)</h3>
+                         <div>
+                            <label for="file-input-pdf" class="file-input-label">2. Selecione os relatórios em PDF:</label>
+                            <input type="file" id="file-input-pdf" class="file-input" accept=".pdf" multiple>
+                        </div>
+                        <button id="btn-importar-pdf" class="btn btn-purple w-full" disabled>Importar Relatórios de Notas em PDF</button>
+                    </div>
+                    
+                    <!-- Seção de Atualização e Relatórios -->
+                    <div class="space-y-4 pt-4 border-t">
+                         <h3 class="text-lg font-semibold text-gray-600">Atualizações e Relatórios</h3>
+                         <button id="btn-atualizar-regulares" class="btn btn-info w-full" disabled>Atualizar Notas Regulares (XLSX)</button>
+                         <button id="btn-atualizar-recuperacao" class="btn btn-warning w-full" disabled>Inserir Notas de Recuperação (XLSX)</button>
+                         <button id="btn-atualizar-recursal" class="btn btn-danger w-full" disabled>Inserir Notas de Prova Recursal (XLSX)</button>
+
+                         <div class="space-y-4 pt-4 border-t">
+                            <button id="btn-classificar-polo" class="btn btn-secondary w-full" disabled>Classificar por Polo (XLSX)</button>
+                            <button id="btn-relatorio-recursal-excel" class="btn btn-secondary w-full" disabled>Relatório Recursal (XLSX)</button>
+                            <button id="btn-relatorio-estatistico" class="btn btn-secondary w-full" disabled>Relatório Estatístico</button>
+                            <button id="btn-exportar-pdf" class="btn btn-success w-full" disabled>Exportar Relatórios (PDF)</button>
+                         </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Coluna de Conteúdo Principal -->
+            <section class="md:col-span-2">
+                <div class="card">
+                    <h2 id="table-title" class="text-2xl font-bold text-gray-700 mb-4">Visão Geral dos Dados</h2>
+                     <div id="stats-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-center"></div>
+                    <div id="table-container" class="table-container">
+                        <p id="table-placeholder" class="text-gray-500 text-center py-10">Aguardando a criação da planilha consolidada. Por favor, selecione um arquivo e clique em "Criar Planilha Consolidada".</p>
+                        <table id="data-table" class="min-w-full bg-white hidden">
+                            <thead id="table-head"></thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+         <!-- Canvas oculto para renderizar gráficos para o PDF -->
+        <canvas id="chart-distribuicao" class="hidden"></canvas>
+        <canvas id="chart-polos" class="hidden"></canvas>
+    </div>
+
+<script>
+// ===================================================================================
+// ESTADO DA APLICAÇÃO E CONSTANTES
+// ===================================================================================
+let dfConsolidado = null; // Armazena os dados consolidados, similar ao DataFrame do Pandas
+const POLOS_VALIDOS = ["2º BPM", "3º BPM", "7º BPM", "4º BPM", "5º BPM", "8º BPM", "11º BPM"];
+const CAMINHO_CONSOLIDADO = "Notas_Unificadas.xlsx";
+
+// ===================================================================================
+// ELEMENTOS DO DOM
+// ===================================================================================
+const fileInputXlsx = document.getElementById('file-input-xlsx');
+const fileInputPdf = document.getElementById('file-input-pdf');
+const loadingOverlay = document.getElementById('loading-overlay');
+const buttons = {
+    gerar: document.getElementById('btn-gerar-planilha'),
+    importarPDF: document.getElementById('btn-importar-pdf'),
+    regulares: document.getElementById('btn-atualizar-regulares'),
+    recuperacao: document.getElementById('btn-atualizar-recuperacao'),
+    recursal: document.getElementById('btn-atualizar-recursal'),
+    classificarPolo: document.getElementById('btn-classificar-polo'),
+    relatorioRecursalExcel: document.getElementById('btn-relatorio-recursal-excel'),
+    relatorioEstatistico: document.getElementById('btn-relatorio-estatistico'),
+    exportarPDF: document.getElementById('btn-exportar-pdf'),
+};
+const tableContainer = {
+    container: document.getElementById('table-container'),
+    title: document.getElementById('table-title'),
+    placeholder: document.getElementById('table-placeholder'),
+    table: document.getElementById('data-table'),
+    head: document.getElementById('table-head'),
+    body: document.getElementById('table-body'),
+    stats: document.getElementById('stats-summary'),
+};
+
+
+// ===================================================================================
+// FUNÇÕES AUXILIARES E LÓGICA DE NEGÓCIO
+// ===================================================================================
+
+function toggleLoading(show) {
+    loadingOverlay.classList.toggle('hidden', !show);
+}
+
+function updateButtonStates() {
+    const dataAvailable = dfConsolidado && dfConsolidado.length > 0;
+    Object.values(buttons).forEach(btn => {
+        if (btn.id !== 'btn-gerar-planilha') {
+            btn.disabled = !dataAvailable;
+        }
+    });
+}
+
+function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        if (!file) return reject(new Error("Nenhum arquivo selecionado."));
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+                const sheets = {};
+                workbook.SheetNames.forEach(sheetName => {
+                    sheets[sheetName] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                });
+                resolve(sheets);
+            } catch (e) { reject(e); }
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function encontrarColunas(columns) {
+    const lowerCaseColumns = columns.map(c => String(c || '').toLowerCase());
+    return {
+        numero_col: columns[lowerCaseColumns.findIndex(c => c.includes('número'))],
+        nome_col: columns[lowerCaseColumns.findIndex(c => c.includes('guerra'))],
+        nota_col: columns[lowerCaseColumns.findIndex(c => c.includes('nota'))],
+        polo_col: columns[lowerCaseColumns.findIndex(c => c.includes('polo'))],
+    };
+}
+
+function toArrayOfObjects(rawData) {
+    const headers = rawData[0];
+    return rawData.slice(1).map(row => {
+        let obj = {};
+        headers.forEach((header, i) => { obj[header] = row[i]; });
+        return obj;
+    });
+}
+
+function recalcularMediasEPosicoes(data) {
+    if (!data || data.length === 0) return [];
+    
+    const notaCols = Object.keys(data[0] || {}).filter(col => ![
+        'Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média', 'Prova_Recursal'
+    ].includes(col));
+    
+    data.forEach(aluno => {
+        let soma = 0;
+        let count = 0;
+        notaCols.forEach(col => {
+            const nota = parseFloat(aluno[col]);
+            if (!isNaN(nota)) {
+                soma += nota;
+                count++;
+            }
+        });
+        aluno['Média'] = count > 0 ? parseFloat((soma / count).toFixed(2)) : 0;
+    });
+
+    data.sort((a, b) => b['Média'] - a['Média']);
+    data.forEach((aluno, index) => {
+        aluno['Posição Geral'] = (index > 0 && aluno['Média'] === data[index-1]['Média']) ? data[index-1]['Posição Geral'] : index + 1;
+    });
+
+    const polos = [...new Set(data.map(a => a['Polo']))];
+    polos.forEach(polo => {
+        const alunosPolo = data.filter(a => a['Polo'] === polo);
+        alunosPolo.sort((a, b) => b['Média'] - a['Média']);
+        alunosPolo.forEach((aluno, index) => {
+             aluno['Posição no Polo'] = (index > 0 && aluno['Média'] === alunosPolo[index-1]['Média']) ? alunosPolo[index-1]['Posição no Polo'] : index + 1;
+        });
+    });
+    
+    // Reordenar colunas para manter a consistência
+    const colunasOrdenadas = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo'];
+    const disciplinas = Object.keys(data[0]).filter(c => !colunasOrdenadas.includes(c) && !['Média', 'Prova_Recursal'].includes(c)).sort();
+    const colunasFinais = [...colunasOrdenadas, ...disciplinas, 'Média', 'Prova_Recursal'];
+
+    return data
+        .map(row => {
+            let newRow = {};
+            colunasFinais.forEach(col => newRow[col] = row[col]);
+            return newRow;
+        })
+        .sort((a,b) => a['Posição Geral'] - b['Posição Geral']);
+}
+
+
+function renderizarTabela(data, title = "Visão Geral dos Dados") {
+    if (!data || data.length === 0) {
+        tableContainer.table.classList.add('hidden');
+        tableContainer.placeholder.classList.remove('hidden');
+        tableContainer.stats.innerHTML = '';
+        return;
+    }
+    
+    tableContainer.title.textContent = title;
+    tableContainer.placeholder.classList.add('hidden');
+    tableContainer.table.classList.remove('hidden');
+
+    const headers = Object.keys(data[0]);
+    tableContainer.head.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+    tableContainer.body.innerHTML = data.map(row => `
+        <tr class="${row['Prova_Recursal'] ? 'font-bold bg-red-50' : ''}">
+            ${headers.map(h => {
+                let value = row[h];
+                if (typeof value === 'number' && (h === 'Média' || !colunasOrdenadas.includes(h))) {
+                    value = value.toFixed(2);
+                } else if (value === undefined || value === null) {
+                    value = '';
+                }
+                return `<td>${value}</td>`;
+            }).join('')}
+        </tr>
+    `).join('');
+    
+    renderizarResumoEstatistico(data);
+}
+
+function renderizarResumoEstatistico(data) {
+    const mediaGeral = data.reduce((sum, a) => sum + (a['Média'] || 0), 0) / data.length;
+    const maiorNota = Math.max(...data.map(a => a['Média'] || 0));
+    const menorNota = Math.min(...data.map(a => a['Média'] || 0));
+
+    tableContainer.stats.innerHTML = `
+        <div class="bg-blue-100 p-3 rounded-lg"><p class="text-sm text-blue-800 font-semibold">Total de Alunos</p><p class="text-2xl font-bold text-blue-900">${data.length}</p></div>
+        <div class="bg-green-100 p-3 rounded-lg"><p class="text-sm text-green-800 font-semibold">Média Geral</p><p class="text-2xl font-bold text-green-900">${mediaGeral.toFixed(2)}</p></div>
+        <div class="bg-yellow-100 p-3 rounded-lg"><p class="text-sm text-yellow-800 font-semibold">Maior Média</p><p class="text-2xl font-bold text-yellow-900">${maiorNota.toFixed(2)}</p></div>
+        <div class="bg-red-100 p-3 rounded-lg"><p class="text-sm text-red-800 font-semibold">Menor Média</p><p class="text-2xl font-bold text-red-900">${menorNota.toFixed(2)}</p></div>`;
+}
+
+function salvarComoXLSX(data, filename) {
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Consolidado');
+    XLSX.writeFile(workbook, filename);
+}
+
+
+// ===================================================================================
+// LÓGICA DE GERAÇÃO E ATUALIZAÇÃO
+// ===================================================================================
+
+async function handleGerarPlanilhaInicial() {
+    const file = fileInputXlsx.files[0];
+    if (!file) {
+        Swal.fire('Atenção', 'Por favor, selecione um arquivo Excel primeiro.', 'warning');
+        return;
+    }
+    toggleLoading(true);
+    try {
+        const sheets = await readExcelFile(file);
+        let dados = [];
+        Object.keys(sheets).forEach(aba => {
+            let df = sheets[aba];
+            let numero_col, nome_col, nota_col, polo_col;
+            let headerRowIndex = -1;
+            for (let i = 0; i < Math.min(5, df.length); i++) {
+                const tempCols = encontrarColunas(df[i]);
+                if (tempCols.numero_col && tempCols.nome_col && tempCols.nota_col) {
+                    headerRowIndex = i;
+                    ({ numero_col, nome_col, nota_col, polo_col } = tempCols);
+                    break;
+                }
+            }
+            if (headerRowIndex === -1) return;
+
+            let tempDf = df.slice(headerRowIndex);
+            let tempDados = toArrayOfObjects(tempDf);
+
+            let colsToKeep = { [numero_col]: 'Número', [nome_col]: 'Nome de Guerra', [nota_col]: aba };
+            if (polo_col) colsToKeep[polo_col] = 'Polo';
+            
+            let abaData = tempDados.map(row => {
+                let newRow = {};
+                for (const oldCol in colsToKeep) newRow[colsToKeep[oldCol]] = row[oldCol];
+                return newRow;
+            }).filter(row => row['Número'] != null && row['Nome de Guerra'] != null);
+            dados.push(abaData);
+        });
+
+        if (dados.length === 0) throw new Error("Nenhum dado válido encontrado.");
+
+        let dfFinal = dados.reduce((left, right) => {
+            const rightMap = new Map(right.map(item => [`${item['Número']}-${item['Nome de Guerra']}`, item]));
+            return left.map(leftItem => {
+                const rightItem = rightMap.get(`${leftItem['Número']}-${leftItem['Nome de Guerra']}`);
+                if (rightItem) rightMap.delete(`${leftItem['Número']}-${leftItem['Nome de Guerra']}`);
+                return { ...leftItem, ...rightItem };
+            }).concat([...rightMap.values()]);
+        });
+
+        dfFinal.forEach(row => {
+            if (!row['Polo']) row['Polo'] = 'Desconhecido';
+            row['Prova_Recursal'] = false;
+        });
+
+        const notaCols = Object.keys(dfFinal[0]).filter(col => !['Número', 'Nome de Guerra', 'Polo'].includes(col));
+        dfFinal.forEach(row => {
+            notaCols.forEach(col => {
+                const nota = parseFloat(String(row[col]).replace(',', '.'));
+                row[col] = isNaN(nota) ? null : parseFloat(nota.toFixed(2));
+            });
+        });
+
+        dfConsolidado = recalcularMediasEPosicoes(dfFinal);
+        renderizarTabela(dfConsolidado, "Planilha Consolidada Gerada");
+        Swal.fire('Sucesso!', `Planilha criada na memória. Você já pode usar as outras funções.`, 'success');
+
+    } catch (error) {
+        Swal.fire('Erro', `Ocorreu um erro: ${error.message}`, 'error');
+    } finally {
+        toggleLoading(false);
+        updateButtonStates();
+    }
+}
+
+async function handleAtualizarNotas(options = {}) {
+    const file = fileInputXlsx.files[0]; // Assume que a atualização ainda vem de XLSX
+    if (!file) {
+        Swal.fire('Atenção', 'Selecione um arquivo XLSX com as novas notas.', 'warning');
+        return;
+    }
+    toggleLoading(true);
+    const tipoProva = options.recuperacao ? "recuperação" : (options.prova_recursal ? "prova recursal" : "regulares");
+
+    try {
+        const sheets = await readExcelFile(file);
+        if (!dfConsolidado[0]['Prova_Recursal'] === undefined) {
+             dfConsolidado.forEach(row => row['Prova_Recursal'] = false);
+        }
+        let alunosProvaRecursal = new Set();
+        Object.keys(sheets).forEach(aba => {
+            let tempDados = toArrayOfObjects(sheets[aba].slice(4)); // Suposição da estrutura
+            tempDados.forEach(alunoNota => {
+                const numero = alunoNota['Número'];
+                const nome = alunoNota['Nome de Guerra'];
+                let notaNova = parseFloat(String(alunoNota['Nota']).replace(',', '.'));
+                if (isNaN(notaNova)) return;
+
+                if (options.recuperacao) notaNova = Math.min(notaNova, 6.0);
+                if (options.prova_recursal) notaNova = Math.min(notaNova, 5.0);
+
+                const alunoConsolidado = dfConsolidado.find(a => a['Número'] == numero && a['Nome de Guerra'] == nome);
+                if (alunoConsolidado) {
+                    if (options.prova_recursal) alunosProvaRecursal.add(`${numero}-${nome}`);
+                    const notaAntiga = parseFloat(alunoConsolidado[aba]);
+                    alunoConsolidado[aba] = isNaN(notaAntiga) ? notaNova : Math.max(notaAntiga, notaNova);
+                }
+            });
+        });
+
+        if (options.prova_recursal) {
+            alunosProvaRecursal.forEach(key => {
+                const [numero, nome] = key.split('-');
+                const aluno = dfConsolidado.find(a => a['Número'] == numero && a['Nome de Guerra'] == nome);
+                if (aluno) aluno['Prova_Recursal'] = true;
+            });
+        }
+        dfConsolidado = recalcularMediasEPosicoes(dfConsolidado);
+        renderizarTabela(dfConsolidado, `Notas de ${tipoProva} atualizadas`);
+        Swal.fire('Sucesso!', `Notas de ${tipoProva} atualizadas.`, 'success');
+    } catch (error) {
+        Swal.fire('Erro', `Erro ao atualizar: ${error.message}`, 'error');
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+
+// ===================================================================================
+// NOVA LÓGICA PARA IMPORTAÇÃO DE PDF
+// ===================================================================================
+
+/**
+ * Analisa o texto extraído de um PDF e retorna os dados dos alunos.
+ * @param {string} text - O conteúdo de texto completo do PDF.
+ * @returns {Array} - Um array de objetos, cada um representando um aluno.
+ */
+function parsePDFText(text) {
+    const lines = text.split('\n');
+    const data = [];
+    const colunas = ['Status', 'Polo', 'Pelotão', 'Número', 'Matrícula', 'Nome completo', 'Nome de guerra', 'Sexo', 'Disciplina da prova', 'Data da prova', 'Tipo da prova', 'Chamada da prova', 'Nota na prova', 'Resultado'];
+    
+    // Regex para extrair valores entre aspas, lidando com vírgulas dentro dos valores
+    const csvRegex = /(?:"([^"]*)"|([^,]*))(?:,|$)/g;
+
+    for (const line of lines) {
+        // Ignora linhas de cabeçalho ou vazias
+        if (!line.includes('ATIVO') || line.includes('Status')) continue;
+
+        const fields = [];
+        let match;
+        // Reinicia o regex para cada linha
+        csvRegex.lastIndex = 0; 
+        while ((match = csvRegex.exec(line))) {
+            // Pega o valor capturado pelo grupo 1 (entre aspas) ou grupo 2 (sem aspas)
+            fields.push(match[1] || match[2]);
+        }
+        
+        if (fields.length >= 13) {
+            try {
+                const row = {};
+                // Mapeamento corrigido baseado na estrutura do PDF
+                row['Polo'] = fields[1]?.trim();
+                row['Número'] = fields[3]?.trim();
+                row['Nome de Guerra'] = fields[6]?.trim();
+                row['Disciplina'] = fields[8]?.trim();
+                row['Nota'] = parseFloat(String(fields[12]).replace(',', '.').trim());
+
+                // Validação mínima dos dados extraídos
+                if (row['Número'] && row['Nome de Guerra'] && row['Disciplina'] && !isNaN(row['Nota'])) {
+                    data.push(row);
+                }
+            } catch (e) {
+                console.warn("Linha malformada ignorada:", line);
+            }
+        }
+    }
+    return data;
+}
+
+/**
+ * Lê um arquivo PDF, extrai seu texto e o analisa.
+ * @param {File} file - O arquivo PDF.
+ * @returns {Promise<Array>} - Uma promessa que resolve para um array de dados de alunos.
+ */
+async function readAndParsePDF(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        fullText += textContent.items.map(item => item.str).join(' ');
+    }
+    // A função de parse foi ajustada para lidar com o texto bruto extraído
+    return parsePDFText(fullText.replace(/(\r\n|\n|\r)/gm, "\n")); // Normaliza quebras de linha
+}
+
+/**
+ * Manipula a importação e atualização de notas a partir de arquivos PDF.
+ */
+async function handleImportarPDFs() {
+    const files = fileInputPdf.files;
+    if (!files || files.length === 0) {
+        Swal.fire('Atenção', 'Por favor, selecione um ou mais arquivos PDF.', 'warning');
+        return;
+    }
+    if (!dfConsolidado) {
+        Swal.fire('Erro', 'Crie a planilha consolidada primeiro antes de importar notas de PDF.', 'error');
+        return;
+    }
+    toggleLoading(true);
+
+    try {
+        let totalAlunosAtualizados = 0;
+        let disciplinasImportadas = new Set();
+
+        for (const file of files) {
+            const pdfData = await readAndParsePDF(file);
+            if (pdfData.length === 0) {
+                console.warn(`Nenhum dado válido encontrado no arquivo ${file.name}`);
+                continue;
+            }
+
+            const disciplina = pdfData[0].Disciplina;
+            disciplinasImportadas.add(disciplina);
+            
+            // Adiciona a coluna da disciplina se não existir
+            if (disciplina && !dfConsolidado[0].hasOwnProperty(disciplina)) {
+                dfConsolidado.forEach(aluno => aluno[disciplina] = null);
+            }
+
+            pdfData.forEach(alunoPdf => {
+                const alunoConsolidado = dfConsolidado.find(a => 
+                    String(a['Número']) === String(alunoPdf['Número']) && 
+                    a['Nome de Guerra'] === alunoPdf['Nome de Guerra']
+                );
+                if (alunoConsolidado) {
+                    alunoConsolidado[disciplina] = alunoPdf.Nota;
+                    totalAlunosAtualizados++;
+                }
+            });
+        }
+        
+        dfConsolidado = recalcularMediasEPosicoes(dfConsolidado);
+        renderizarTabela(dfConsolidado, "Notas de PDF Importadas");
+        Swal.fire('Sucesso!', `Importação concluída. ${totalAlunosAtualizados} notas atualizadas para as disciplinas: ${[...disciplinasImportadas].join(', ')}.`, 'success');
+
+    } catch (error) {
+        Swal.fire('Erro', `Ocorreu um erro durante a importação do PDF: ${error.message}`, 'error');
+        console.error(error);
+    } finally {
+        toggleLoading(false);
+    }
+}
+
+
+// ===================================================================================
+// LÓGICA DOS RELATÓRIOS E EXPORTAÇÕES (sem alterações significativas)
+// ===================================================================================
+
+async function handleClassificarPolo() {
+    const { value: polo } = await Swal.fire({
+        title: 'Selecione um Polo', input: 'select',
+        inputOptions: POLOS_VALIDOS.reduce((obj, p) => ({...obj, [p]: p}), {}),
+        inputPlaceholder: 'Selecione um polo', showCancelButton: true
+    });
+    if (polo) {
+        toggleLoading(true);
+        try {
+            let dfPolo = dfConsolidado.filter(a => a['Polo'] === polo).sort((a,b) => a['Posição no Polo'] - b['Posição no Polo']);
+            if (dfPolo.length === 0) throw new Error(`Nenhum aluno para o polo '${polo}'.`);
+            salvarComoXLSX(dfPolo, `Classificacao_${polo.replace(/\s/g, '_')}.xlsx`);
+            Swal.fire('Exportado!', `Arquivo para o polo ${polo} gerado.`, 'success');
+        } catch(e) { Swal.fire('Erro', e.message, 'error'); } 
+        finally { toggleLoading(false); }
+    }
+}
+
+function handleRelatorioRecursalExcel() {
+    toggleLoading(true);
+    try {
+        const dfRecursal = dfConsolidado.filter(a => a['Prova_Recursal'] === true);
+        if (dfRecursal.length === 0) {
+             Swal.fire('Informação', 'Nenhum aluno fez prova recursal.', 'info');
+             return;
+        }
+        salvarComoXLSX(dfRecursal, "Relatório_Prova_Recursal.xlsx");
+        Swal.fire('Exportado!', `Relatório de prova recursal salvo.`, 'success');
+    } catch(e) { Swal.fire('Erro', `Erro ao gerar relatório: ${e.message}`, 'error'); }
+    finally { toggleLoading(false); }
+}
+
+function handleRelatorioEstatistico() {
+    let htmlContent = `<div class="text-left">`;
+    const mediaGeral = (dfConsolidado.reduce((s, a) => s + a['Média'], 0) / dfConsolidado.length).toFixed(2);
+    htmlContent += `<p><b>Total de alunos:</b> ${dfConsolidado.length} | <b>Média geral:</b> ${mediaGeral}</p>`;
+    htmlContent += `<h3 class="text-xl font-bold mt-4 mb-2">Distribuição por Polo</h3>`;
+    [...new Set(dfConsolidado.map(a => a.Polo))].forEach(polo => {
+        const poloData = dfConsolidado.filter(a => a.Polo === polo);
+        const poloMedia = (poloData.reduce((s, a) => s + a['Média'], 0) / poloData.length).toFixed(2);
+        htmlContent += `<p class="mt-2"><b>${polo}:</b> ${poloData.length} alunos, média ${poloMedia}</p>`;
+    });
+    if (dfConsolidado.some(a => a.Prova_Recursal)) {
+        const recursalCount = dfConsolidado.filter(a => a.Prova_Recursal).length;
+        htmlContent += `<h3 class="text-xl font-bold mt-4 mb-2">Prova Recursal</h3>`;
+        htmlContent += `<p><b>Alunos que fizeram:</b> ${recursalCount} (${(recursalCount/dfConsolidado.length*100).toFixed(1)}%)</p>`;
+    }
+    htmlContent += `</div>`;
+    Swal.fire({ title: 'Relatório Estatístico', html: htmlContent, icon: 'info' });
+}
+
+async function handleExportarPDF() {
+     const { value: choice } = await Swal.fire({
+        title: 'Selecione o Relatório PDF', input: 'select',
+        inputOptions: { 'geral': '🏆 Classificação Geral', 'polo': '🏢 Classificação por Polo', 'recursal': '⚡ Relatório de Prova Recursal' },
+        inputPlaceholder: 'Escolha uma opção', showCancelButton: true
+     });
+    if (choice === 'geral') exportarPDFClassificacaoGeral();
+    if (choice === 'polo') exportarPDFPorPolo();
+    if (choice === 'recursal') exportarPDFProvaRecursal();
+}
+
+// ===================================================================================
+// FUNÇÕES DE GERAÇÃO DE PDF (sem alterações)
+// ===================================================================================
+const { jsPDF } = window.jspdf;
+
+function createPdfBase(title, doc, data, headStyles = { fillColor: [54, 96, 146] }) {
+    doc.setFontSize(18);
+    doc.setTextColor(40);
+    doc.text(title, doc.internal.pageSize.width / 2, 20, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text(`Relatório gerado em: ${new Date().toLocaleString('pt-BR')}`, doc.internal.pageSize.width / 2, 28, { align: 'center' });
+    doc.autoTable({
+        startY: 35,
+        head: [Object.keys(data[0])],
+        body: data.map(row => Object.values(row).map(val => (val === null || val === undefined) ? '' : val)),
+        theme: 'grid',
+        headStyles: { ...headStyles, textColor: [255, 255, 255] },
+        styles: { fontSize: 8, cellPadding: 2 },
+        alternateRowStyles: { fillColor: [220, 230, 241] },
+    });
+    return doc;
+}
+
+function exportarPDFClassificacaoGeral() {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const colunasVisiveis = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média'];
+    const dfPdf = dfConsolidado.map(row => {
+        let newRow = {};
+        colunasVisiveis.forEach(col => newRow[col] = row[col]);
+        return newRow;
+    });
+    createPdfBase("CLASSIFICAÇÃO GERAL DOS ALUNOS", doc, dfPdf);
+    doc.save(`Classificacao_Geral.pdf`);
+}
+
+async function exportarPDFPorPolo() {
+    const { value: polo } = await Swal.fire({
+        title: 'Selecione um Polo', input: 'select',
+        inputOptions: POLOS_VALIDOS.reduce((obj, p) => ({...obj, [p]: p}), {}),
+        inputPlaceholder: 'Selecione um polo', showCancelButton: true,
+    });
+    if (polo) {
+        const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+        const dfPolo = dfConsolidado.filter(a => a.Polo === polo);
+        if (dfPolo.length === 0) return;
+        const colunasVisiveis = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Média'];
+        const dfPdf = dfPolo.map(row => {
+            let newRow = {};
+            colunasVisiveis.forEach(col => newRow[col] = row[col]);
+            return newRow;
+        });
+        createPdfBase(`CLASSIFICAÇÃO - POLO ${polo}`, doc, dfPdf);
+        doc.save(`Classificacao_${polo.replace(/\s/g, '_')}.pdf`);
+    }
+}
+
+function exportarPDFProvaRecursal() {
+    const dfRecursal = dfConsolidado.filter(a => a.Prova_Recursal === true);
+    if (dfRecursal.length === 0) {
+        Swal.fire('Informação', 'Nenhum aluno fez prova recursal.', 'info');
+        return;
+    }
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+    const colunasVisiveis = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média'];
+    const dfPdf = dfRecursal.map(row => {
+        let newRow = {};
+        colunasVisiveis.forEach(col => newRow[col] = row[col]);
+        return newRow;
+    });
+    createPdfBase("RELATÓRIO DE PROVA RECURSAL", doc, dfPdf, { fillColor: [220, 53, 69] });
+    doc.save(`Relatorio_Prova_Recursal.pdf`);
+}
+
+
+// ===================================================================================
+// REGISTRO DE EVENTOS
+// ===================================================================================
+document.addEventListener('DOMContentLoaded', () => {
+    buttons.gerar.addEventListener('click', handleGerarPlanilhaInicial);
+    buttons.importarPDF.addEventListener('click', handleImportarPDFs);
+    buttons.regulares.addEventListener('click', () => handleAtualizarNotas());
+    buttons.recuperacao.addEventListener('click', () => handleAtualizarNotas({ recuperacao: true }));
+    buttons.recursal.addEventListener('click', () => handleAtualizarNotas({ prova_recursal: true }));
+    buttons.classificarPolo.addEventListener('click', handleClassificarPolo);
+    buttons.relatorioRecursalExcel.addEventListener('click', handleRelatorioRecursalExcel);
+    buttons.relatorioEstatistico.addEventListener('click', handleRelatorioEstatistico);
+    buttons.exportarPDF.addEventListener('click', handleExportarPDF);
+    
+    updateButtonStates();
+});
+
+</script>
+</body>
+</html>
