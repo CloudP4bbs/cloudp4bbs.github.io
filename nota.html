@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Notas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-700">Sistema de Gestão de Notas</h1>
+            <p class="text-gray-500 mt-2">Uma ferramenta moderna para consolidar e analisar notas de alunos.</p>
+        </header>
+
+        <!-- Painel de Controle -->
+        <div class="bg-white p-6 rounded-2xl shadow-md mb-8">
+            <h2 class="text-xl font-semibold mb-4 border-b pb-2">Painel de Controle</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Ação 1: Gerar Planilha Inicial -->
+                <div>
+                    <label for="initialFile" class="block text-sm font-medium text-gray-700 mb-1">1. Criar Planilha Consolidada</label>
+                    <input type="file" id="initialFile" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept=".xlsx, .xls">
+                </div>
+
+                <!-- Ação 2: Atualizar Notas -->
+                <div>
+                    <label for="updateFile" class="block text-sm font-medium text-gray-700 mb-1">2. Atualizar Notas</label>
+                    <input type="file" id="updateFile" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" accept=".xlsx, .xls" disabled>
+                     <div class="mt-2 flex items-center space-x-4">
+                        <label class="flex items-center"><input type="radio" name="updateType" value="regular" class="form-radio h-4 w-4 text-blue-600" checked> <span class="ml-2 text-sm">Regular</span></label>
+                        <label class="flex items-center"><input type="radio" name="updateType" value="recuperacao" class="form-radio h-4 w-4 text-yellow-600"> <span class="ml-2 text-sm">Recuperação</span></label>
+                        <label class="flex items-center"><input type="radio" name="updateType" value="recursal" class="form-radio h-4 w-4 text-red-600"> <span class="ml-2 text-sm">Recursal</span></label>
+                    </div>
+                </div>
+
+                <!-- Ação 3: Exportar e Limpar -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">3. Ações Adicionais</label>
+                    <div class="flex space-x-2">
+                        <button id="exportExcelBtn" class="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-semibold" disabled>Exportar Excel</button>
+                        <button id="exportPdfBtn" class="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-semibold" disabled>Exportar PDF</button>
+                        <button id="clearDataBtn" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed transition-colors text-sm font-semibold" disabled>Limpar Tudo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Mensagens e Filtros -->
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+            <div id="messageArea" class="text-sm font-medium"></div>
+            <div class="flex items-center space-x-2">
+                <label for="poloFilter" class="text-sm font-medium">Filtrar por Polo:</label>
+                <select id="poloFilter" class="rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm" disabled>
+                    <option value="all">Todos os Polos</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Tabela de Dados -->
+        <div id="tableContainer" class="bg-white p-1 rounded-2xl shadow-md overflow-x-auto">
+             <div id="loader" class="hidden justify-center items-center p-10">
+                <div class="loader"></div>
+                <p class="ml-4 text-gray-600">Processando dados...</p>
+            </div>
+            <table id="dataTable" class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <!-- Cabeçalho gerado dinamicamente -->
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                   <!-- Dados gerados dinamicamente -->
+                   <tr><td colspan="100" class="text-center p-10 text-gray-500" id="initialMessage">Nenhum dado carregado. Por favor, carregue uma planilha para começar.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Rodapé -->
+        <footer class="text-center mt-8 text-sm text-gray-400">
+            <p>Desenvolvido para otimizar a gestão acadêmica.</p>
+        </footer>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Elements
+        const initialFileInput = document.getElementById('initialFile');
+        const updateFileInput = document.getElementById('updateFile');
+        const exportExcelBtn = document.getElementById('exportExcelBtn');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const clearDataBtn = document.getElementById('clearDataBtn');
+        const poloFilter = document.getElementById('poloFilter');
+        const messageArea = document.getElementById('messageArea');
+        const tableContainer = document.getElementById('tableContainer');
+        const dataTable = document.getElementById('dataTable');
+        const loader = document.getElementById('loader');
+        const initialMessage = document.getElementById('initialMessage');
+
+        // State
+        let studentData = [];
+        let subjectColumns = [];
+
+        // --- Core Logic ---
+
+        const findColumns = (df) => {
+            const headers = df[0];
+            const lowerCaseHeaders = headers.map(h => String(h).toLowerCase());
+            return {
+                numero_col: headers[lowerCaseHeaders.findIndex(h => h.includes('número'))],
+                nome_col: headers[lowerCaseHeaders.findIndex(h => h.includes('guerra'))],
+                nota_col: headers[lowerCaseHeaders.findIndex(h => h.includes('nota'))],
+                polo_col: headers[lowerCaseHeaders.findIndex(h => h.includes('polo'))],
+            };
+        };
+        
+        const processInitialFile = async (file) => {
+            toggleLoader(true);
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                
+                let allSheetData = [];
+                let anyPoloFound = false;
+
+                for (const sheetName of workbook.SheetNames) {
+                    const worksheet = workbook.Sheets[sheetName];
+                    let df_raw = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+                    
+                    if (df_raw.length === 0) continue;
+
+                    let headersIndex = -1;
+                    let cols = {};
+
+                    // Find header row by searching for 'número' and 'guerra'
+                    for (let i = 0; i < Math.min(df_raw.length, 6); i++) {
+                        const temp_df = df_raw.slice(i);
+                        cols = findColumns(temp_df);
+                        if (cols.numero_col && cols.nome_col && cols.nota_col) {
+                            headersIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (headersIndex === -1) {
+                         showMessage(`Aba '${sheetName}' ignorada: colunas essenciais não encontradas.`, 'orange');
+                        continue;
+                    }
+                    
+                    const headers = df_raw[headersIndex];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: headers, range: headersIndex, defval: null });
+                    
+                    if(cols.polo_col) anyPoloFound = true;
+
+                    const sheetParsedData = jsonData.map(row => {
+                        const student = {
+                            'Número': row[cols.numero_col],
+                            'Nome de Guerra': row[cols.nome_col],
+                            [sheetName]: row[cols.nota_col],
+                        };
+                        if (cols.polo_col) {
+                           student['Polo'] = row[cols.polo_col];
+                        }
+                        return student;
+                    }).filter(s => s['Número'] != null && s['Nome de Guerra'] != null);
+                    
+                    allSheetData.push({ data: sheetParsedData, polo: !!cols.polo_col });
+                }
+
+                if (allSheetData.length === 0) {
+                    throw new Error("Nenhum dado válido encontrado nas abas do arquivo.");
+                }
+
+                // Merge data from all sheets
+                let mergedData = [];
+                if (anyPoloFound) {
+                    // Set default Polo for sheets without it
+                    allSheetData.forEach(sheet => {
+                        if (!sheet.polo) {
+                            sheet.data.forEach(student => student['Polo'] = 'Desconhecido');
+                        }
+                    });
+                }
+                
+                // Simple merge based on 'Número'
+                const studentMap = new Map();
+                allSheetData.forEach(sheet => {
+                    sheet.data.forEach(student => {
+                        const key = student['Número'];
+                        if (studentMap.has(key)) {
+                            Object.assign(studentMap.get(key), student);
+                        } else {
+                            studentMap.set(key, { ...student });
+                        }
+                    });
+                });
+                
+                mergedData = Array.from(studentMap.values());
+
+                if (!mergedData.some(s => s.hasOwnProperty('Polo'))) {
+                    mergedData.forEach(s => s['Polo'] = 'Desconhecido');
+                }
+                
+                studentData = calculateMetricsAndSort(mergedData);
+                saveDataToCache();
+                renderTable();
+                updateUIState();
+                showMessage('Planilha consolidada criada com sucesso!', 'green');
+
+            } catch (error) {
+                console.error(error);
+                showMessage(`Erro ao processar arquivo: ${error.message}`, 'red');
+            } finally {
+                toggleLoader(false);
+                initialFileInput.value = ''; // Reset input
+            }
+        };
+
+        const processUpdateFile = async (file) => {
+             toggleLoader(true);
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                const updateType = document.querySelector('input[name="updateType"]:checked').value;
+                let dataWasUpdated = false;
+
+                let currentData = getDataFromCache();
+                if(currentData.length === 0) {
+                    throw new Error("Não há dados consolidados para atualizar. Carregue uma planilha inicial primeiro.");
+                }
+
+                const studentMap = new Map(currentData.map(s => [s['Número'], s]));
+
+                for (const sheetName of workbook.SheetNames) {
+                    const worksheet = workbook.Sheets[sheetName];
+                    let df_raw = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+                    if (df_raw.length === 0) continue;
+
+                    let headersIndex = -1;
+                    let cols = {};
+                    for (let i = 0; i < Math.min(df_raw.length, 6); i++) {
+                        const temp_df = df_raw.slice(i);
+                        cols = findColumns(temp_df);
+                        if (cols.numero_col && cols.nome_col && cols.nota_col) {
+                            headersIndex = i;
+                            break;
+                        }
+                    }
+                    if (headersIndex === -1) continue;
+
+                    const headers = df_raw[headersIndex];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: headers, range: headersIndex, defval: null });
+                    
+                    jsonData.forEach(row => {
+                        const numero = row[cols.numero_col];
+                        let notaNova = parseFloat(row[cols.nota_col]);
+
+                        if (isNaN(notaNova) || numero == null) return;
+                        notaNova = Math.round(notaNova * 100) / 100;
+
+                        if (updateType === 'recuperacao') notaNova = Math.min(notaNova, 6.0);
+                        if (updateType === 'recursal') notaNova = Math.min(notaNova, 5.0);
+
+                        if (studentMap.has(numero)) {
+                            const student = studentMap.get(numero);
+                            const notaAntiga = student[sheetName] ? parseFloat(student[sheetName]) : -1;
+                            student[sheetName] = Math.max(notaAntiga, notaNova);
+
+                            if (updateType === 'recursal') {
+                                student['Prova_Recursal'] = true;
+                            }
+                            dataWasUpdated = true;
+                        }
+                    });
+                }
+                
+                if (!dataWasUpdated) {
+                    throw new Error("Nenhum aluno correspondente encontrado no arquivo de atualização.");
+                }
+
+                studentData = calculateMetricsAndSort(Array.from(studentMap.values()));
+                saveDataToCache();
+                renderTable();
+                showMessage('Notas atualizadas com sucesso!', 'green');
+
+            } catch (error) {
+                console.error(error);
+                showMessage(`Erro ao atualizar notas: ${error.message}`, 'red');
+            } finally {
+                toggleLoader(false);
+                updateFileInput.value = '';
+            }
+        };
+
+        const calculateMetricsAndSort = (data) => {
+            const allColumns = data.reduce((cols, row) => {
+                Object.keys(row).forEach(col => cols.add(col));
+                return cols;
+            }, new Set());
+
+            const fixedCols = ['Número', 'Nome de Guerra', 'Polo', 'Média', 'Posição Geral', 'Posição no Polo', 'Prova_Recursal'];
+            subjectColumns = [...allColumns].filter(c => !fixedCols.includes(c)).sort();
+
+            data.forEach(student => {
+                if(!student.hasOwnProperty('Prova_Recursal')) {
+                    student['Prova_Recursal'] = false;
+                }
+                let sum = 0;
+                let count = 0;
+                subjectColumns.forEach(subj => {
+                    const grade = parseFloat(student[subj]);
+                    if (!isNaN(grade)) {
+                        sum += grade;
+                        count++;
+                    }
+                });
+                student['Média'] = count > 0 ? Math.round((sum / count) * 100) / 100 : 0;
+            });
+            
+            // Rank Geral
+            data.sort((a, b) => b['Média'] - a['Média']);
+            data.forEach((student, index) => {
+                if (index > 0 && student['Média'] === data[index - 1]['Média']) {
+                    student['Posição Geral'] = data[index - 1]['Posição Geral'];
+                } else {
+                    student['Posição Geral'] = index + 1;
+                }
+            });
+
+            // Rank por Polo
+            const polos = [...new Set(data.map(s => s['Polo']))];
+            polos.forEach(polo => {
+                const poloData = data.filter(s => s['Polo'] === polo);
+                // Already sorted by Média, so ranking is simpler
+                 poloData.forEach((student, index) => {
+                    if (index > 0 && student['Média'] === poloData[index - 1]['Média']) {
+                        student['Posição no Polo'] = poloData[index - 1]['Posição no Polo'];
+                    } else {
+                        student['Posição no Polo'] = index + 1;
+                    }
+                });
+            });
+
+            return data;
+        };
+        
+        // --- UI & Rendering ---
+        
+        const renderTable = () => {
+            const dataToRender = filterDataByPolo();
+            const tableHead = dataTable.querySelector('thead');
+            const tableBody = dataTable.querySelector('tbody');
+
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            if (dataToRender.length === 0) {
+                 tableBody.innerHTML = `<tr><td colspan="100" class="text-center p-10 text-gray-500">${studentData.length > 0 ? 'Nenhum aluno encontrado para o polo selecionado.' : 'Nenhum dado carregado.'}</td></tr>`;
+                 if (studentData.length > 0) initialMessage.classList.add('hidden');
+                 return;
+            }
+
+            initialMessage.classList.add('hidden');
+
+            // Header
+            const finalCols = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', ...subjectColumns, 'Média'];
+            const trHead = document.createElement('tr');
+            finalCols.forEach(col => {
+                const th = document.createElement('th');
+                th.scope = 'col';
+                th.className = 'px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider';
+                th.textContent = col;
+                trHead.appendChild(th);
+            });
+            tableHead.appendChild(trHead);
+
+            // Body
+            dataToRender.forEach(student => {
+                const tr = document.createElement('tr');
+                if (student['Prova_Recursal']) {
+                    tr.className = 'font-bold bg-red-50';
+                } else {
+                    tr.className = 'hover:bg-gray-50';
+                }
+                
+                finalCols.forEach(col => {
+                    const td = document.createElement('td');
+                    td.className = 'px-4 py-3 whitespace-nowrap text-sm';
+                    let value = student[col];
+
+                    if(typeof value === 'number') {
+                        if (['Posição Geral', 'Posição no Polo', 'Número'].includes(col)) {
+                           td.textContent = Math.round(value);
+                        } else {
+                           td.textContent = value.toFixed(2);
+                        }
+                        td.classList.add('text-center');
+                    } else {
+                         td.textContent = value != null ? value : '-';
+                         if (col !== 'Nome de Guerra') td.classList.add('text-center');
+                    }
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+            updatePoloFilter();
+        };
+
+        const updatePoloFilter = () => {
+            const polos = [...new Set(studentData.map(s => s.Polo))].sort();
+            const currentSelection = poloFilter.value;
+            poloFilter.innerHTML = '<option value="all">Todos os Polos</option>';
+            polos.forEach(polo => {
+                const option = document.createElement('option');
+                option.value = polo;
+                option.textContent = polo;
+                poloFilter.appendChild(option);
+            });
+            poloFilter.value = currentSelection;
+        };
+        
+        const filterDataByPolo = () => {
+            const selectedPolo = poloFilter.value;
+            if(selectedPolo === 'all') {
+                return [...studentData].sort((a,b) => a['Posição Geral'] - b['Posição Geral']);
+            }
+            return studentData.filter(s => s.Polo === selectedPolo).sort((a,b) => a['Posição no Polo'] - b['Posição no Polo']);
+        };
+        
+        const showMessage = (msg, color = 'blue') => {
+            const colors = {
+                red: 'text-red-700 bg-red-100',
+                green: 'text-green-700 bg-green-100',
+                blue: 'text-blue-700 bg-blue-100',
+                orange: 'text-yellow-700 bg-yellow-100',
+            };
+            messageArea.textContent = msg;
+            messageArea.className = `p-2 rounded-md text-sm font-medium ${colors[color]}`;
+            setTimeout(() => { messageArea.textContent = ''; messageArea.className = ''; }, 5000);
+        };
+
+        const toggleLoader = (show) => {
+            if (show) {
+                loader.classList.remove('hidden');
+                loader.classList.add('flex');
+                dataTable.classList.add('hidden');
+                initialMessage.classList.add('hidden');
+            } else {
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+                dataTable.classList.remove('hidden');
+            }
+        };
+
+        const updateUIState = () => {
+            const hasData = studentData.length > 0;
+            updateFileInput.disabled = !hasData;
+            exportExcelBtn.disabled = !hasData;
+            exportPdfBtn.disabled = !hasData;
+            clearDataBtn.disabled = !hasData;
+            poloFilter.disabled = !hasData;
+        };
+
+        const clearAllData = () => {
+            if(confirm('Tem certeza de que deseja apagar todos os dados? Esta ação não pode ser desfeita.')) {
+                studentData = [];
+                subjectColumns = [];
+                localStorage.removeItem('studentData');
+                localStorage.removeItem('subjectColumns');
+                renderTable();
+                updateUIState();
+                poloFilter.innerHTML = '<option value="all">Todos os Polos</option>';
+                initialMessage.classList.remove('hidden');
+                showMessage('Todos os dados foram apagados.', 'blue');
+            }
+        };
+        
+        // --- Caching ---
+        
+        const saveDataToCache = () => {
+            localStorage.setItem('studentData', JSON.stringify(studentData));
+            localStorage.setItem('subjectColumns', JSON.stringify(subjectColumns));
+        };
+        
+        const getDataFromCache = () => {
+            const data = localStorage.getItem('studentData');
+            const subjects = localStorage.getItem('subjectColumns');
+            if (data) {
+                studentData = JSON.parse(data);
+                subjectColumns = subjects ? JSON.parse(subjects) : [];
+                return studentData;
+            }
+            return [];
+        };
+
+        // --- Exporting ---
+
+        const exportToExcel = () => {
+            if (studentData.length === 0) return;
+            const finalCols = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', ...subjectColumns, 'Média', 'Prova_Recursal'];
+            const dataToExport = studentData.map(student => {
+                const orderedStudent = {};
+                finalCols.forEach(col => {
+                     let value = student[col];
+                     if(typeof value === 'number' && !['Posição Geral', 'Posição no Polo', 'Número'].includes(col)) {
+                         orderedStudent[col] = parseFloat(value.toFixed(2));
+                     } else if (typeof value === 'number') {
+                         orderedStudent[col] = Math.round(value);
+                     } else {
+                         orderedStudent[col] = value;
+                     }
+                });
+                return orderedStudent;
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Classificação Geral");
+            XLSX.writeFile(workbook, "Notas_Unificadas.xlsx");
+        };
+
+        const exportToPDF = () => {
+            if (studentData.length === 0) return;
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'pt',
+                format: 'a4'
+            });
+
+            const selectedPolo = poloFilter.value;
+            const dataToExport = filterDataByPolo();
+            const title = selectedPolo === 'all' ? 'Classificação Geral' : `Classificação - Polo ${selectedPolo}`;
+            const headCols = ['Pos. Geral', 'Pos. Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média'];
+            const bodyData = dataToExport.map(s => [
+                Math.round(s['Posição Geral']),
+                Math.round(s['Posição no Polo']),
+                Math.round(s['Número']),
+                s['Nome de Guerra'],
+                s['Polo'],
+                s['Média'].toFixed(2)
+            ]);
+            
+            doc.autoTable({
+                head: [headCols],
+                body: bodyData,
+                didDrawPage: function(data) {
+                    doc.setFontSize(18);
+                    doc.setTextColor(40);
+                    doc.text(title, data.settings.margin.left, 40);
+                },
+                margin: { top: 60 },
+                styles: { font: 'Inter', cellPadding: 4, fontSize: 8 },
+                headStyles: { fillColor: [34, 49, 63], fontSize: 9 },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+            });
+            
+            doc.save(`Classificacao_${selectedPolo.replace(' ','_')}.pdf`);
+        };
+
+        // --- Event Listeners ---
+        
+        initialFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                 if (studentData.length > 0 && !confirm('Isso substituirá os dados atuais. Deseja continuar?')) {
+                    initialFileInput.value = '';
+                    return;
+                }
+                processInitialFile(e.target.files[0]);
+            }
+        });
+        
+        updateFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processUpdateFile(e.target.files[0]);
+            }
+        });
+        
+        poloFilter.addEventListener('change', renderTable);
+        exportExcelBtn.addEventListener('click', exportToExcel);
+        exportPdfBtn.addEventListener('click', exportToPDF);
+        clearDataBtn.addEventListener('click', clearAllData);
+        
+        // --- Initial Load ---
+        
+        getDataFromCache();
+        renderTable();
+        updateUIState();
+        if (studentData.length > 0) {
+            showMessage('Dados carregados do cache local.', 'blue');
+        }
+    });
+    </script>
+</body>
+</html>
