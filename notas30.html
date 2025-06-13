@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Notas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.worker.min.js`;
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .btn {
+            @apply text-white py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50;
+        }
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700 focus:ring-blue-500;
+        }
+        .btn-secondary {
+            @apply bg-green-600 hover:bg-green-700 focus:ring-green-500;
+        }
+        .btn-danger {
+            @apply bg-red-600 hover:bg-red-700 focus:ring-red-500;
+        }
+        .table-header {
+            @apply sticky top-0 bg-gray-800 text-white text-sm font-semibold;
+        }
+        .table-header th {
+            @apply px-4 py-2 text-center;
+        }
+        .table-cell {
+            @apply px-4 py-2 border-b border-gray-200 text-sm;
+        }
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            transition: visibility 0.5s, opacity 0.5s linear;
+            opacity: 0;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+        }
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="loader" class="hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800">Sistema de Gestão de Notas</h1>
+            <p class="text-gray-600 mt-2">Uma ferramenta moderna para consolidar e analisar notas de alunos.</p>
+        </header>
+
+        <main>
+            <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">Painel de Controle</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Ação Principal -->
+                    <div class="space-y-4 p-4 border rounded-lg">
+                        <label for="action-type" class="block text-sm font-medium text-gray-700">1. Escolha a Ação:</label>
+                        <select id="action-type" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="initial">Criar Planilha Consolidada</option>
+                            <option value="update_xlsx">Atualizar Notas (XLSX)</option>
+                            <option value="update_pdf">Atualizar Notas (PDF)</option>
+                        </select>
+                    </div>
+
+                    <!-- Tipo de Prova (para atualizações) -->
+                    <div id="update-options-container" class="space-y-4 p-4 border rounded-lg hidden">
+                        <label for="update-type" class="block text-sm font-medium text-gray-700">2. Tipo de Atualização:</label>
+                        <select id="update-type" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="regular">Nota Regular</option>
+                            <option value="recuperacao">Recuperação (Teto 6.0)</option>
+                            <option value="recursal">Prova Recursal (Teto 5.0)</option>
+                        </select>
+                    </div>
+
+                    <!-- Input de Arquivo -->
+                    <div class="space-y-4 p-4 border rounded-lg md:col-span-2 lg:col-span-1">
+                        <label for="file-input" class="block text-sm font-medium text-gray-700">3. Selecione o Arquivo:</label>
+                        <input type="file" id="file-input" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                        <button id="process-button" class="btn btn-primary w-full">Processar Arquivo</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">Relatórios</h2>
+                 <div class="flex flex-wrap gap-4">
+                    <button id="export-xlsx" class="btn btn-secondary flex-grow">Exportar para XLSX</button>
+                    <button id="export-pdf-geral" class="btn btn-danger flex-grow">Exportar PDF (Geral)</button>
+                    <button id="export-pdf-polo" class="btn btn-danger flex-grow">Exportar PDF (por Polo)</button>
+                    <button id="export-pdf-recursal" class="btn btn-danger flex-grow">Exportar PDF (Recursal)</button>
+                    <button id="clear-data" class="btn bg-gray-500 hover:bg-gray-600 focus:ring-gray-400 flex-grow">Limpar Dados</button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                 <div id="table-container" class="overflow-x-auto max-h-[70vh]">
+                    <table class="min-w-full bg-white">
+                        <thead id="table-head" class="table-header">
+                            <!-- Cabeçalho da Tabela Gerado via JS -->
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Corpo da Tabela Gerado via JS -->
+                        </tbody>
+                    </table>
+                 </div>
+                 <div id="no-data" class="text-center p-16 text-gray-500">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum dado para exibir</h3>
+                    <p class="mt-1 text-sm text-gray-500">Comece processando um arquivo para ver os resultados aqui.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Seletores de DOM
+        const actionTypeSelect = document.getElementById('action-type');
+        const updateOptionsContainer = document.getElementById('update-options-container');
+        const updateTypeSelect = document.getElementById('update-type');
+        const fileInput = document.getElementById('file-input');
+        const processButton = document.getElementById('process-button');
+        const tableContainer = document.getElementById('table-container');
+        const tableHead = document.getElementById('table-head');
+        const tableBody = document.getElementById('table-body');
+        const noData = document.getElementById('no-data');
+        const loader = document.getElementById('loader');
+        const toast = document.getElementById('toast');
+        
+        // Botões de exportação
+        const exportXlsxBtn = document.getElementById('export-xlsx');
+        const exportPdfGeralBtn = document.getElementById('export-pdf-geral');
+        const exportPdfPoloBtn = document.getElementById('export-pdf-polo');
+        const exportPdfRecursalBtn = document.getElementById('export-pdf-recursal');
+        const clearDataBtn = document.getElementById('clear-data');
+        
+        // Estado da aplicação
+        let consolidatedData = [];
+        const CACHE_KEY = "notasUnificadasData";
+
+        // Funções de Utilidade
+        const showLoader = () => loader.classList.remove('hidden');
+        const hideLoader = () => loader.classList.add('hidden');
+        
+        const showToast = (message, type = 'success') => {
+            toast.textContent = message;
+            toast.className = `show ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        };
+
+        // Lógica de Cache
+        const saveDataToCache = () => {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(consolidatedData));
+        };
+
+        const loadDataFromCache = () => {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                consolidatedData = JSON.parse(cachedData);
+                if (consolidatedData.length > 0) {
+                    renderTable();
+                }
+            }
+        };
+
+        const clearData = () => {
+            if (confirm("Você tem certeza que deseja apagar todos os dados salvos? Esta ação não pode ser desfeita.")) {
+                consolidatedData = [];
+                localStorage.removeItem(CACHE_KEY);
+                renderTable();
+                showToast("Dados limpos com sucesso.", "success");
+            }
+        };
+
+        // Lógica Principal de Processamento
+        const findColumns = (df) => {
+            const columns = df[0] || [];
+            const find = (keywords) => {
+                for (const keyword of keywords) {
+                    const index = columns.findIndex(c => String(c).toLowerCase().includes(keyword));
+                    if (index !== -1) return { name: columns[index], index };
+                }
+                return null;
+            };
+
+            return {
+                numero_col: find(['número', 'numero']),
+                nome_col: find(['guerra']),
+                nota_col: find(['nota']),
+                polo_col: find(['polo']),
+            };
+        };
+
+        const recalculateAll = () => {
+            if (!consolidatedData || consolidatedData.length === 0) return;
+
+            const notaCols = Object.keys(consolidatedData[0]).filter(col => 
+                !['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média', 'Prova_Recursal'].includes(col)
+            );
+
+            consolidatedData.forEach(row => {
+                let sum = 0;
+                let count = 0;
+                notaCols.forEach(col => {
+                    const nota = parseFloat(row[col]);
+                    if (!isNaN(nota)) {
+                        sum += nota;
+                        count++;
+                    }
+                });
+                row['Média'] = count > 0 ? parseFloat((sum / count).toFixed(2)) : 0;
+            });
+            
+            // Recalcular Posição Geral
+            consolidatedData.sort((a, b) => b['Média'] - a['Média']);
+            let rank = 1;
+            for (let i = 0; i < consolidatedData.length; i++) {
+                if (i > 0 && consolidatedData[i]['Média'] < consolidatedData[i-1]['Média']) {
+                    rank = i + 1;
+                }
+                consolidatedData[i]['Posição Geral'] = rank;
+            }
+
+            // Recalcular Posição no Polo
+            const polos = [...new Set(consolidatedData.map(d => d.Polo))];
+            polos.forEach(polo => {
+                const poloData = consolidatedData.filter(d => d.Polo === polo);
+                poloData.sort((a, b) => b['Média'] - a['Média']);
+                let poloRank = 1;
+                for (let i = 0; i < poloData.length; i++) {
+                    if (i > 0 && poloData[i]['Média'] < poloData[i-1]['Média']) {
+                        poloRank = i + 1;
+                    }
+                    const originalIndex = consolidatedData.findIndex(d => d['Número'] === poloData[i]['Número']);
+                    if (originalIndex !== -1) {
+                        consolidatedData[originalIndex]['Posição no Polo'] = poloRank;
+                    }
+                }
+            });
+
+            // Ordenação final
+            consolidatedData.sort((a, b) => a['Posição Geral'] - b['Posição Geral'] || a['Número'] - b['Número']);
+        };
+        
+        const renderTable = () => {
+            if (!consolidatedData || consolidatedData.length === 0) {
+                tableContainer.classList.add('hidden');
+                noData.classList.remove('hidden');
+                return;
+            }
+
+            tableContainer.classList.remove('hidden');
+            noData.classList.add('hidden');
+
+            // Definir ordem das colunas
+            const baseCols = ['Posição Geral', 'Posição no Polo', 'Número', 'Nome de Guerra', 'Polo'];
+            const allCols = Object.keys(consolidatedData[0]);
+            const disciplinaCols = allCols.filter(c => !baseCols.includes(c) && c !== 'Média' && c !== 'Prova_Recursal').sort();
+            const finalCols = ['Média', 'Prova_Recursal'];
+            const orderedCols = [...baseCols, ...disciplinaCols, ...finalCols];
+            
+            // Cabeçalho
+            tableHead.innerHTML = `<tr>${orderedCols.map(col => `<th class="${col === 'Prova_Recursal' ? 'hidden' : ''}">${col}</th>`).join('')}</tr>`;
+
+            // Corpo
+            tableBody.innerHTML = '';
+            consolidatedData.forEach(row => {
+                const tr = document.createElement('tr');
+                const isRecursal = row['Prova_Recursal'];
+                tr.className = isRecursal ? 'bg-red-100 font-bold' : 'hover:bg-gray-50';
+
+                let cells = '';
+                orderedCols.forEach(col => {
+                    let value = row[col];
+                    if (typeof value === 'number' && col !== 'Número' && col !== 'Posição Geral' && col !== 'Posição no Polo') {
+                        value = value.toFixed(2);
+                    }
+                    const isCentered = ['Posição Geral', 'Posição no Polo', 'Número', 'Polo', 'Média'].includes(col) || disciplinaCols.includes(col);
+                    const cellClass = `table-cell ${isCentered ? 'text-center' : 'text-left'} ${col === 'Prova_Recursal' ? 'hidden' : ''}`;
+                    cells += `<td class="${cellClass}">${value ?? ''}</td>`;
+                });
+                tr.innerHTML = cells;
+                tableBody.appendChild(tr);
+            });
+        };
+
+        const processInitialFile = async (file) => {
+            showLoader();
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                
+                let allStudentData = [];
+                let anyPoloFound = false;
+
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    let headerRowIndex = -1;
+                    let cols = {};
+                    
+                    for(let i=0; i<Math.min(json.length, 10); i++){
+                        const potentialHeader = json[i];
+                        const foundCols = findColumns([potentialHeader]);
+                        if(foundCols.numero_col && foundCols.nome_col && foundCols.nota_col) {
+                            headerRowIndex = i;
+                            cols = foundCols;
+                            break;
+                        }
+                    }
+
+                    if (headerRowIndex === -1) {
+                        console.warn(`Aba '${sheetName}' ignorada por falta de colunas.`);
+                        return;
+                    }
+
+                    if(cols.polo_col) anyPoloFound = true;
+                    
+                    const dataRows = json.slice(headerRowIndex + 1);
+                    dataRows.forEach(row => {
+                        const student = {
+                            'Número': parseInt(row[cols.numero_col.index]),
+                            'Nome de Guerra': row[cols.nome_col.index],
+                            [sheetName]: parseFloat(String(row[cols.nota_col.index]).replace(',', '.')) || null
+                        };
+                        if (cols.polo_col) {
+                           student['Polo'] = row[cols.polo_col.index];
+                        }
+                        if (student['Número'] && student['Nome de Guerra']) {
+                             allStudentData.push(student);
+                        }
+                    });
+                });
+
+                if (allStudentData.length === 0) {
+                    showToast("Nenhum dado válido encontrado nas abas do arquivo.", "error");
+                    return;
+                }
+                
+                // Consolidar dados
+                const studentMap = new Map();
+                allStudentData.forEach(student => {
+                    const key = `${student['Número']}-${student['Nome de Guerra']}`;
+                    if (!studentMap.has(key)) {
+                        studentMap.set(key, { 
+                            'Número': student['Número'],
+                            'Nome de Guerra': student['Nome de Guerra'],
+                            'Polo': student['Polo'] || 'Desconhecido'
+                        });
+                    }
+                    const existingStudent = studentMap.get(key);
+                    const subjectName = Object.keys(student).find(k => k !== 'Número' && k !== 'Nome de Guerra' && k !== 'Polo');
+                    existingStudent[subjectName] = student[subjectName];
+                    if (student.Polo && student.Polo !== 'Desconhecido') {
+                        existingStudent.Polo = student.Polo;
+                    }
+                });
+
+                consolidatedData = Array.from(studentMap.values());
+                consolidatedData.forEach(row => {
+                    if (!row['Prova_Recursal']) {
+                         row['Prova_Recursal'] = false;
+                    }
+                });
+                
+                recalculateAll();
+                renderTable();
+                saveDataToCache();
+                showToast("Planilha consolidada criada com sucesso!", "success");
+
+            } catch (error) {
+                console.error("Erro ao processar planilha inicial:", error);
+                showToast("Erro ao processar o arquivo XLSX.", "error");
+            } finally {
+                hideLoader();
+            }
+        };
+        
+        const processUpdateFromFileData = (updateData) => {
+             if (consolidatedData.length === 0) {
+                showToast("Por favor, crie a planilha consolidada primeiro.", "error");
+                return;
+            }
+            
+            const updateType = updateTypeSelect.value;
+            let recursalStudents = new Set();
+            
+            updateData.forEach(newRow => {
+                const numero = parseInt(newRow['Número']);
+                const nome = newRow['Nome de Guerra'];
+                const disciplina = newRow['Disciplina'];
+                let nota = parseFloat(String(newRow['Nota']).replace(',', '.'));
+
+                if(isNaN(numero) || !nome || !disciplina || isNaN(nota)) return;
+
+                if (updateType === 'recuperacao') nota = Math.min(nota, 6.0);
+                if (updateType === 'recursal') {
+                    nota = Math.min(nota, 5.0);
+                    recursalStudents.add(`${numero}-${nome}`);
+                }
+
+                let student = consolidatedData.find(s => s['Número'] === numero && s['Nome de Guerra'] === nome);
+                
+                if (student) {
+                    // Atualiza nota existente ou adiciona nova
+                    student[disciplina] = student[disciplina] ? Math.max(student[disciplina], nota) : nota;
+                } else {
+                    // Adiciona novo aluno se não existir
+                    const newStudent = {
+                        'Número': numero,
+                        'Nome de Guerra': nome,
+                        'Polo': newRow['Polo'] || 'Desconhecido',
+                        'Prova_Recursal': false
+                    };
+                    newStudent[disciplina] = nota;
+                    consolidatedData.push(newStudent);
+                }
+            });
+            
+            // Marcar alunos da prova recursal
+            if (updateType === 'recursal') {
+                consolidatedData.forEach(student => {
+                    const key = `${student['Número']}-${student['Nome de Guerra']}`;
+                    if (recursalStudents.has(key)) {
+                        student['Prova_Recursal'] = true;
+                    }
+                });
+            }
+
+            recalculateAll();
+            renderTable();
+            saveDataToCache();
+            showToast("Notas atualizadas com sucesso!", "success");
+        };
+
+
+        const processUpdateXLSX = async (file) => {
+            showLoader();
+            try {
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data);
+                let updateData = [];
+
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+
+                    json.forEach(row => {
+                        const numero = Object.values(row).find(val => String(val).toLowerCase().includes('número') || String(Object.keys(row).find(key => row[key] === val)).toLowerCase().includes('número'));
+                        const nome = Object.values(row).find(val => String(Object.keys(row).find(key => row[key] === val)).toLowerCase().includes('guerra'));
+                        const nota = Object.values(row).find(val => String(Object.keys(row).find(key => row[key] === val)).toLowerCase().includes('nota'));
+                        const polo = Object.values(row).find(val => String(Object.keys(row).find(key => row[key] === val)).toLowerCase().includes('polo'));
+
+                         if (row['Número'] && row['Nome de Guerra'] && row['NotaNova'] !== undefined) {
+                            updateData.push({
+                                'Número': row['Número'],
+                                'Nome de Guerra': row['Nome de Guerra'],
+                                'Disciplina': sheetName,
+                                'Nota': row['NotaNova'],
+                                'Polo': row['Polo'] || 'Desconhecido'
+                            });
+                        }
+                    });
+                });
+                
+                processUpdateFromFileData(updateData);
+
+            } catch (error) {
+                console.error("Erro ao atualizar com XLSX:", error);
+                showToast("Erro ao ler o arquivo de atualização.", "error");
+            } finally {
+                hideLoader();
+            }
+        };
+        
+        const processUpdatePDF = async (file) => {
+            showLoader();
+            try {
+                const data = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({data}).promise;
+                const numPages = pdf.numPages;
+                let updateData = [];
+
+                const HEADERS = ['status', 'polo', 'pelotão', 'número', 'matrícula', 'nome completo', 'nome de guerra', 'sexo', 'disciplina da prova', 'data da prova', 'tipo da prova', 'chamada da prova', 'nota na prova', 'resultado'];
+
+                for (let i = 1; i <= numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const lines = textContent.items.map(item => item.str).join('');
+                    
+                    const rows = lines.split('"').filter(r => r.trim() && r.trim() !== ',');
+                    
+                    for (const row of rows) {
+                         const values = row.split(',').map(v => v.trim()).filter(Boolean);
+                         if (values.length >= 10) { // Basic validation
+                            const rowData = {};
+                            rowData['Número'] = values[3];
+                            rowData['Nome de Guerra'] = values[6];
+                            rowData['Nota'] = values[12];
+                            rowData['Disciplina'] = values[8];
+                            rowData['Polo'] = values[1];
+
+                            if(rowData['Número'] && rowData['Nome de Guerra'] && rowData['Nota'] && rowData['Disciplina']) {
+                                updateData.push(rowData);
+                            }
+                         }
+                    }
+                }
+                
+                processUpdateFromFileData(updateData);
+
+            } catch (error) {
+                console.error("Erro ao processar PDF:", error);
+                showToast("Erro ao ler ou interpretar o arquivo PDF.", "error");
+            } finally {
+                hideLoader();
+            }
+        };
+        
+        // Handlers de Exportação
+        const exportToXLSX = () => {
+            if(consolidatedData.length === 0) {
+                showToast("Não há dados para exportar.", "error");
+                return;
+            }
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(consolidatedData);
+            XLSX.utils.book_append_sheet(wb, ws, "Notas Consolidadas");
+            XLSX.writeFile(wb, "Notas_Unificadas.xlsx");
+            showToast("Arquivo XLSX exportado com sucesso!", "success");
+        };
+
+        const exportToPDF = (mode) => {
+            if(consolidatedData.length === 0) {
+                showToast("Não há dados para exportar.", "error");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const headStyles = { fillColor: [54, 96, 146] };
+            const alternateRowStyles = { fillColor: [220, 230, 241] };
+            
+            const generatePdfForData = (data, title, filename, polo = null) => {
+                doc.setFontSize(18);
+                doc.text(title, 14, 20);
+
+                let columns = ['Pos. Geral', 'Pos. Polo', 'Número', 'Nome de Guerra', 'Polo', 'Média'];
+                let body = data.map(row => [
+                    row['Posição Geral'], 
+                    row['Posição no Polo'], 
+                    row['Número'], 
+                    row['Nome de Guerra'], 
+                    row['Polo'], 
+                    row['Média'].toFixed(2)
+                ]);
+
+                if(polo) {
+                    columns = ['Pos. Geral', 'Pos. Polo', 'Número', 'Nome de Guerra', 'Média'];
+                    body = data.map(row => [
+                        row['Posição Geral'], 
+                        row['Posição no Polo'], 
+                        row['Número'], 
+                        row['Nome de Guerra'],
+                        row['Média'].toFixed(2)
+                    ]);
+                }
+                
+                doc.autoTable({
+                    head: [columns],
+                    body: body,
+                    startY: 30,
+                    headStyles: headStyles,
+                    alternateRowStyles: alternateRowStyles,
+                    didDrawPage: function(data) {
+                        doc.setFontSize(9);
+                        doc.text(`Gerado em: ${new Date().toLocaleString()}`, data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
+                    }
+                });
+            };
+            
+            if (mode === 'geral') {
+                generatePdfForData(consolidatedData, "Classificação Geral", "Classificacao_Geral.pdf");
+                doc.save("Classificacao_Geral.pdf");
+            } else if (mode === 'recursal') {
+                const recursalData = consolidatedData.filter(d => d['Prova_Recursal']);
+                if (recursalData.length === 0) {
+                    showToast("Nenhum aluno em prova recursal para exportar.", "info");
+                    return;
+                }
+                generatePdfForData(recursalData, "Relatório de Prova Recursal", "Relatorio_Prova_Recursal.pdf");
+                doc.save("Relatorio_Prova_Recursal.pdf");
+            } else if (mode === 'polo') {
+                 const polos = [...new Set(consolidatedData.map(d => d.Polo))].sort();
+                 polos.forEach((polo, index) => {
+                    const poloData = consolidatedData.filter(d => d.Polo === polo);
+                    if (index > 0) doc.addPage();
+                    generatePdfForData(poloData, `Classificação - Polo ${polo}`, `Classificacao_Polo_${polo}.pdf`, polo);
+                 });
+                 doc.save("Classificacao_por_Polo.pdf");
+            }
+             showToast("Arquivo PDF exportado com sucesso!", "success");
+        };
+
+        // Event Listeners
+        actionTypeSelect.addEventListener('change', (e) => {
+            if (e.target.value.startsWith('update')) {
+                updateOptionsContainer.classList.remove('hidden');
+            } else {
+                updateOptionsContainer.classList.add('hidden');
+            }
+        });
+
+        processButton.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                showToast("Por favor, selecione um arquivo.", "error");
+                return;
+            }
+
+            const action = actionTypeSelect.value;
+            if (action === 'initial') {
+                processInitialFile(file);
+            } else if (action === 'update_xlsx') {
+                processUpdateXLSX(file);
+            } else if (action === 'update_pdf') {
+                processUpdatePDF(file);
+            }
+        });
+        
+        exportXlsxBtn.addEventListener('click', exportToXLSX);
+        exportPdfGeralBtn.addEventListener('click', () => exportToPDF('geral'));
+        exportPdfPoloBtn.addEventListener('click', () => exportToPDF('polo'));
+        exportPdfRecursalBtn.addEventListener('click', () => exportToPDF('recursal'));
+        clearDataBtn.addEventListener('click', clearData);
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+             loadDataFromCache();
+        });
+
+    </script>
+</body>
+</html>
